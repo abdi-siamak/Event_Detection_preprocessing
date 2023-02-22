@@ -1,0 +1,7 @@
+max weight before removing outliers: 140
+max weight after removing outliers: 140
+max weight after finding max weight: 123
+mue: 45.805
+sd: 36.828
+Num. of nodes: 8226
+Num. of edges: 41012
