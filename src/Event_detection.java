@@ -463,7 +463,7 @@ public class Event_detection {
         POS = true; // use part of speech method? (POS)
         Pru = true; // remove unwanted weights? (pruning)
         KR = true; // keep removed words?
-        FH = true; // remove frequent hashtags? (frequency filter)
+        FH = false; // remove frequent hashtags? (frequency filter)
         graph_building(path, path_2, path_3); //building the graph + preprocessing
         graph_writing(path_graph); //pruning-removing edges with unwanted weights
         Dic_building();

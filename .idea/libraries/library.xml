@@ -1,0 +1,23 @@
+<component name="libraryTable">
+  <library name="library">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/library/json-simple-1.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/poi-4.1.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/json-20190722.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/commons-collections4-4.3.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/commons-codec-1.12.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/opennlp-tools-1.9.2.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/commons-compress-1.18.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/curvesapi-1.06.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/poi-ooxml-schemas-4.1.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/xmlbeans-3.1.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/jar_files.zip!/" />
+      <root url="jar://$PROJECT_DIR$/library/poi-3.9.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/commons-math3-3.6.1.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/opennlp-tools-1.9.2-javadoc.jar!/" />
+      <root url="jar://$PROJECT_DIR$/library/poi-ooxml-4.1.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
