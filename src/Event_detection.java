@@ -79,22 +79,22 @@ public class Event_detection {
                     String tweet = (String) jo.get("text"); // getting tweets
                     String[] tokens;
                     if (POS){ // applying part of speech method
-                        tweet = tweet.replaceAll("http\\p{L}+", "").replaceAll("[^a-zA-Z0-9'@# \\s]+", "").toLowerCase();
+                        tweet = tweet.replaceAll("http\\p{L}+", "").replaceAll("[^a-zA-Z'@# \\s]+", "").toLowerCase().replaceAll("\\b[tT][cC][oO]\\w*\\b","");
                         tokens = PosTagger_Performance.main(tweet).toArray(String[]::new);
                     }else{
-                        tokens = tweet.replaceAll("http\\p{L}+", "").replaceAll("[^a-zA-Z@# ]", "").toLowerCase().split("\\s+"); // tokenizing and preprocessing
+                        tokens = tweet.replaceAll("http\\p{L}+", "").replaceAll("[^a-zA-Z@# ]", "").toLowerCase().replaceAll("\\b[tT][cC][oO]\\w*\\b","").split("\\s+"); // tokenizing and preprocessing
                         for(String x:tokens){
-                            if (x.startsWith("@")){
-                                if(!findmatch(mentions, x) && x.length()>1 && KR){
+                            if (x.startsWith("@") && x.length()>1){
+                                if(!findmatch(mentions, x) && KR){
                                     mentions.add(x);
                                 }
                                 List<String> List = new ArrayList<String>(Arrays.asList(tokens));
                                 List.remove(x);
                                 tokens = List.toArray(new String[0]);
-                            }else if(x.startsWith("#")) {
-                                if (!hashtags.containsKey(x) && x.length()>1 && KR) {
+                            }else if(x.startsWith("#") && x.length()>1) {
+                                if (!hashtags.containsKey(x) && KR) {
                                     hashtags.put(x, 1);
-                                } else if (hashtags.containsKey(x) && x.length()>1 && KR) {
+                                } else if (hashtags.containsKey(x) && KR) {
                                     hashtags.put(x, hashtags.get(x) + 1);
                                 }
                                 List<String> List_2 = new ArrayList<String>(Arrays.asList(tokens));
@@ -463,7 +463,7 @@ public class Event_detection {
         POS = true; // use part of speech method? (POS)
         Pru = true; // remove unwanted weights? (pruning)
         KR = true; // keep removed words?
-        FH = false; // remove frequent hashtags? (frequency filter)
+        FH = true; // remove frequent hashtags? (frequency filter)
         graph_building(path, path_2, path_3); //building the graph + preprocessing
         graph_writing(path_graph); //pruning-removing edges with unwanted weights
         Dic_building();

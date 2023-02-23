@@ -25,14 +25,14 @@ public class PosTagger_Performance {
         }
          */
         for(String x:tokens){
-            if (x.startsWith("@")){
+            if (x.startsWith("@") && x.length()>1){
                 if(!Event_detection.findmatch(Event_detection.mentions, x) && Event_detection.KR){
                     Event_detection.mentions.add(x);
                 }
                 List<String> List = new ArrayList<String>(Arrays.asList(tokens));
                 List.remove(x);
                 tokens = List.toArray(new String[0]);
-            }else if(x.startsWith("#")) {
+            }else if(x.startsWith("#") && x.length()>1) {
                 if (!Event_detection.hashtags.containsKey(x) && Event_detection.KR) {
                     Event_detection.hashtags.put(x, 1);
                 } else if (Event_detection.hashtags.containsKey(x) && Event_detection.KR) {
