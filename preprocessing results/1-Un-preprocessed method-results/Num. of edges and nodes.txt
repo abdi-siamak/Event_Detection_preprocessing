@@ -1,0 +1,3 @@
+Num. of nodes: 10205
+Num. of edges: 15763
+Max Weight: 229
