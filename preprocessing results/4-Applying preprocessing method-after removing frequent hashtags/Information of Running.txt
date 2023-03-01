@@ -1,7 +1,7 @@
-Num. of nodes: 5147
-Num. of edges: 7583
-max weight before removing outliers: 123
-max weight after removing outliers: 104
-max weight after frequency filter: 82
-mue: 28.470
-sd: 30.563
+Num. of nodes: 926
+Num. of edges: 2917
+max weight before removing outliers: 1059
+max weight after removing outliers: 241 (before frequency filter)
+max weight after frequency filter: 180
+mue: 73.88
+sd: 111.429

@@ -132,17 +132,17 @@ public class Event_detection {
                     //System.out.println(dictionary_list);
 ////////////////////////////////////////////////////////////////////////////////////////////////
                     List<String> BOW = new ArrayList<>(hSet); // bag of words
+                    List<String> BOW_tmp = new ArrayList<>(1); // temporal list used for sorting
+                    //System.out.println(BOW);
                     for (int i = 0; i < BOW.size(); i++) {
                         for (int j = i + 1; j < BOW.size(); j++) {
-                            BOW = getSorted(BOW.get(i) + " " + BOW.get(j)); // sort words based on their indexes
-                            if (graph.containsKey(BOW.get(i) + " " + BOW.get(j))) {
-                                //System.out.println(new Pair(BOW.get(i),BOW.get(j)));
-                                int tmp = graph.get(BOW.get(i) + " " + BOW.get(j));
+                            BOW_tmp = getSorted(BOW.get(i) + " " + BOW.get(j)); // sort two selected words based on their indexes
+                            if (graph.containsKey(BOW_tmp.get(0) + " " + (BOW_tmp.get(1)))) {
+                                int tmp = graph.get(BOW_tmp.get(0) + " " + BOW_tmp.get(1));
                                 tmp = tmp + 1;
-                                graph.put(BOW.get(i) + " " + BOW.get(j), tmp);
+                                graph.put(BOW_tmp.get(0) + " " + BOW_tmp.get(1), tmp);
                             } else {
-                                //System.out.println(new Pair(BOW.get(i),BOW.get(j)));
-                                graph.put(BOW.get(i) + " " + BOW.get(j), 1);
+                                graph.put(BOW_tmp.get(0) + " " + BOW_tmp.get(1), 1);
                             }
                         }
                     }
@@ -173,30 +173,6 @@ public class Event_detection {
     public static void graph_writing(String path_graph) throws IOException {
         FileWriter fw = new FileWriter(path_graph); // building the graph file
         System.out.println("Writing the graph file...");
-        ////////////////////////////////////////////////////////////////////////////////////////////
-        if (FH){ // removing frequent hashtags
-            ArrayList<String> removedList = new ArrayList<String>();
-            Integer fh = dictionary_list.get("brexit"); //getting the index of brexit
-            //System.out.println(fh);
-            for (String key:graph.keySet()){ //getting a list of keys that should be removed
-                //System.out.println(keys);
-                ArrayList<Integer> indexList = new ArrayList<Integer>(2);
-                StringTokenizer tokenizer = new StringTokenizer(key);
-                while (tokenizer.hasMoreTokens()) {
-                    Integer index = Integer.parseInt(tokenizer.nextToken());
-                    indexList.add(index);
-                    //System.out.println(indexList);
-                }
-                //System.out.println(indexList.contains(fh));
-                if (indexList.contains(fh)) {
-                    removedList.add(key); //getting a list of keys that should be removed
-                }
-                //System.out.println(removedList);
-            }
-            for (String key:removedList){
-                graph.remove(key);
-            }
-        }
         ////////////////////////////////////// finding and removing outliers and unwanted weights
         if (Pru){ // pruning the graph
             HashMap<Integer, Integer> weights = new HashMap<>();
@@ -210,13 +186,13 @@ public class Event_detection {
             //System.out.println("sum_sd: " + sum_sd);
             max_weight = Collections.max(graph.values());
             System.out.println("max weight before removing outliers: "+max_weight);
-            graph.values().removeIf(v -> v<(int) array[0] - 3*array[1]); // removing edges with unwanted weights
-            graph.values().removeIf(v -> v>(int) array[0] + 3*array[1]);
+            graph.values().removeIf(v -> v<(array[0] - 3*array[1])); // removing edges with unwanted weights
+            graph.values().removeIf(v -> v>(array[0] + 3*array[1]));
 
             max_weight = Collections.max(graph.values());
             System.out.println("max weight after removing outliers: "+max_weight);
-            graph.values().removeIf(v -> v<(int) Math.round(0.01*max_weight)); // removing edges with unwanted weights
-            graph.values().removeIf(v -> v>(int) Math.round(0.9*max_weight));
+            graph.values().removeIf(v -> v<(0.01*max_weight)); // removing edges with unwanted weights
+            graph.values().removeIf(v -> v>(0.9*max_weight));
 
             max_weight = Collections.max(graph.values());
             System.out.println("max weight after frequency filter: "+max_weight);
@@ -228,6 +204,31 @@ public class Event_detection {
             max_weight = Collections.max(graph.values());
             System.out.println("max weight: "+max_weight);
         }
+        ////////////////////////////////////////////////////////////////////////////////////////////
+        if (FH){ // removing frequent hashtags
+            ArrayList<String> removedKeyList = new ArrayList<String>();//
+            Integer fh = dictionary_list.get("brexit"); //getting the index of brexit
+            //System.out.println(fh);
+            for (String key:graph.keySet()){ //getting a list of keys that should be removed
+                //System.out.println(keys);
+                ArrayList<Integer> indexList = new ArrayList<Integer>(2);
+                StringTokenizer tokenizer = new StringTokenizer(key);
+                while (tokenizer.hasMoreTokens()) {
+                    Integer index = Integer.parseInt(tokenizer.nextToken());
+                    indexList.add(index);
+                    //System.out.println(indexList);
+                }
+                //System.out.println(indexList.contains(fh));
+                if (indexList.contains(fh)) {
+                    removedKeyList.add(key); //getting a list of keys that should be removed
+                }
+                //System.out.println(removedList);
+            }
+            for (String key:removedKeyList){
+                graph.remove(key);
+            }
+        }
+        ///////////////////////////////////////////////////////////////////////////////////////////
         graph.forEach((k,v) -> {
             try {
                 fw.write(k + " " + v +"\n");
@@ -459,11 +460,11 @@ public class Event_detection {
         String path_hashtag = "preprocessing results/Hashtags.xlsx";
         String path_mention = "preprocessing results/Mentions.txt";
         RT = true; // remove retweets?
-        ST = true; // use stopwords?
-        POS = true; // use part of speech method? (POS)
-        Pru = true; // remove unwanted weights? (pruning)
-        KR = true; // keep removed words?
-        FH = true; // remove frequent hashtags? (frequency filter)
+        ST = true; // remove stopwords?
+        POS = true; // use the part of speech method? (POS)
+        Pru = true; // remove unwanted weights? pruning-(removing outliers, finding max weight, and frequency filter)
+        KR = true; // save removed words in a file?
+        FH = true; // remove words that have frequent hashtags?
         graph_building(path, path_2, path_3); //building the graph + preprocessing
         graph_writing(path_graph); //pruning-removing edges with unwanted weights
         Dic_building();
