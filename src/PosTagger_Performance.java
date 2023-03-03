@@ -32,6 +32,7 @@ public class PosTagger_Performance {
                 List<String> List = new ArrayList<String>(Arrays.asList(tokens));
                 List.remove(x);
                 tokens = List.toArray(new String[0]);
+                Event_detection.removedMentions++;
             }else if(x.startsWith("#") && x.length()>1) {
                 if (!Event_detection.hashtags.containsKey(x) && Event_detection.KR) {
                     Event_detection.hashtags.put(x, 1);
@@ -41,14 +42,17 @@ public class PosTagger_Performance {
                 List<String> List_2 = new ArrayList<String>(Arrays.asList(tokens));
                 List_2.remove(x);
                 tokens = List_2.toArray(new String[0]);
+                Event_detection.removedHashtags++;
             }else if(Event_detection.findmatch(Event_detection.stopwords, x)){
-                    List<String> List_3 = new ArrayList<String>(Arrays.asList(tokens));
-                    List_3.remove(x);
-                    tokens = List_3.toArray(new String[0]);
+                List<String> List_3 = new ArrayList<String>(Arrays.asList(tokens));
+                List_3.remove(x);
+                tokens = List_3.toArray(new String[0]);
+                Event_detection.removedStopwords++;
             }else if(x.length()<4 || x.length()>21){
                 List<String> List_4 = new ArrayList<String>(Arrays.asList(tokens));
                 List_4.remove(x);
                 tokens = List_4.toArray(new String[0]);
+                Event_detection.removedUnwantedLength++;
             }
         }
         /*
@@ -71,6 +75,8 @@ public class PosTagger_Performance {
                 }else {
                     POS_nouns.add(tokens[i]);
                 }
+            }else{
+                Event_detection.removedNon_Nouns++;
             }
         }
         //System.out.println(sample.toString());
