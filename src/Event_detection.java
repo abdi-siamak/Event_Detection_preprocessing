@@ -3,8 +3,6 @@ import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import com.sun.jdi.IntegerValue;
-import org.apache.commons.math3.util.Pair;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -132,17 +130,18 @@ public class Event_detection {
                     //System.out.println(dictionary_list);
 ////////////////////////////////////////////////////////////////////////////////////////////////
                     List<String> BOW = new ArrayList<>(hSet); // bag of words
-                    List<String> BOW_tmp = new ArrayList<>(1); // temporal list used for sorting
+                    BOW = getSorted(BOW); //sort the words based on their indexes
+                    //List<String> BOW_tmp = new ArrayList<>(1); // temporal list used for sorting
                     //System.out.println(BOW);
                     for (int i = 0; i < BOW.size(); i++) {
                         for (int j = i + 1; j < BOW.size(); j++) {
-                            BOW_tmp = getSorted(BOW.get(i) + " " + BOW.get(j)); // sort two selected words based on their indexes
-                            if (graph.containsKey(BOW_tmp.get(0) + " " + (BOW_tmp.get(1)))) {
-                                int tmp = graph.get(BOW_tmp.get(0) + " " + BOW_tmp.get(1));
+                            //BOW_tmp = getSorted2(BOW.get(i) + " " + BOW.get(j)); // sort two selected words based on their indexes
+                            if (graph.containsKey(BOW.get(i) + " " + (BOW.get(j)))) {
+                                int tmp = graph.get(BOW.get(i) + " " + BOW.get(j));
                                 tmp = tmp + 1;
-                                graph.put(BOW_tmp.get(0) + " " + BOW_tmp.get(1), tmp);
+                                graph.put(BOW.get(i) + " " + BOW.get(j), tmp);
                             } else {
-                                graph.put(BOW_tmp.get(0) + " " + BOW_tmp.get(1), 1);
+                                graph.put(BOW.get(i) + " " + BOW.get(j), 1);
                             }
                         }
                     }
@@ -150,8 +149,12 @@ public class Event_detection {
             };
 ///////////////////////////////////////////////////////////////////////////////////////////////
             percentage = (float) iter * 100 / lines;
+            //long startTime = System.nanoTime();
             if (percentage % 5 == 0) {
                 System.out.println("Building the graph: " + percentage + " %");
+                //long endTime = System.nanoTime();
+                //long totalTime = endTime - startTime;
+                //System.out.println(totalTime);
             }
             iter = iter + 1;
             line = reader.readLine(); // read next line
@@ -399,7 +402,16 @@ public class Event_detection {
             throw new RuntimeException(e);
         }
     }
-    public static List<String> getSorted (String key) { // sorted words based on their indexes
+    public static List<String> getSorted (List<String> BOW){
+        ArrayList<Integer> indexList = new ArrayList<Integer>();
+        for (String w:BOW){
+            indexList.add(dictionary_list.get(w));
+        }
+        Collections.sort(indexList);
+        List<String> strList = indexList.stream().map(Object::toString).collect(Collectors.toList());
+        return strList;
+    }
+    public static List<String> getSorted2 (String key) { // sorted words based on their indexes
         //System.out.println("key: " + key);
         ArrayList<Integer> indexList = new ArrayList<Integer>();
         StringTokenizer tokenizer = new StringTokenizer(key);
