@@ -5,6 +5,8 @@ import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.json.simple.JSONObject;
@@ -37,6 +39,7 @@ public class Event_detection {
     public static int removedMentions = 0;
     public static int removedNonEnglishtweets = 0;
     public static int removedNon_Nouns = 0;
+    public static HashMap<String, String> dataMap = new HashMap<>();
     public static interface myInterface {
         void building() throws Exception;
     }
@@ -180,15 +183,16 @@ public class Event_detection {
             if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT){  // removing retweets
                 //System.out.println("1 " + iter);
                 i.building();
-            }else if (jo.get("retweeted_status") != null && RT){
+            }else if (jo.get("text") != null && jo.get("retweeted_status") != null && RT){
                 removedRetweets++;
-            }else if (!jo.get("lang").equals("en") && RT){
+            }else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT){
                 removedNonEnglishtweets++;
             }
+
             if (jo.get("text") != null && jo.get("lang").equals("en") && !RT){ // including retweets
                 //System.out.println("2 " + iter);
                 i.building();
-            } else if (!jo.get("lang").equals("en") && !RT) {
+            } else if (jo.get("text") != null && !jo.get("lang").equals("en") && !RT) {
                 removedNonEnglishtweets++;
             }
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,7 +208,7 @@ public class Event_detection {
         System.out.println("# of removed retweets: " + removedRetweets);
         System.out.println("# of removed non-English tweets: " + removedNonEnglishtweets + "\n");
     }
-    public static void graph_writing(String path_graph) throws IOException {
+    public static void graph_writing(String path_graph, String path_rmHashtags) throws IOException {
         FileWriter fw = new FileWriter(path_graph); // building the graph file
         System.out.println("Writing the graph file...");
         System.out.println("\n Statistics of graph's nodes and edges after pruning step: \n");
@@ -247,10 +251,9 @@ public class Event_detection {
         }
         ////////////////////////////////////////////////////////////////////////////////////////////
         if (FH){ // removing frequent hashtags
-            ArrayList<String> removedKeyList = new ArrayList<String>();//
-            Integer fh = dictionary_list.get("brexit"); //getting the index of brexit
-            //System.out.println(fh);
-            for (String key:graph.keySet()){ //getting a list of keys that should be removed
+            ArrayList<String> removedKeys = new ArrayList<>();
+            ExcelToHashMap(path_rmHashtags); // getting the Hashmap contains hashtags that need to be removed
+            for (String key:graph.keySet()){ // removing words of the selected hashtags from the graph
                 //System.out.println(keys);
                 ArrayList<Integer> indexList = new ArrayList<Integer>(2);
                 StringTokenizer tokenizer = new StringTokenizer(key);
@@ -259,13 +262,15 @@ public class Event_detection {
                     indexList.add(index);
                     //System.out.println(indexList);
                 }
-                //System.out.println(indexList.contains(fh));
-                if (indexList.contains(fh)) {
-                    removedKeyList.add(key); //getting a list of keys that should be removed
+                StringBuilder stringBuilder = new StringBuilder(100);
+                StringBuilder stringBuilder2 = new StringBuilder(100);
+                //System.out.println(stringBuilder.append("#").append(getKey(dictionary_list,indexList.get(0))));
+                if (dataMap.containsKey(stringBuilder.append("#").append(getKey(dictionary_list,indexList.get(0))).toString())||dataMap.containsKey(stringBuilder2.append("#").append(getKey(dictionary_list,indexList.get(1))).toString())) {
+                    removedKeys.add(key);
+                    //System.out.println("1: "+key);
                 }
-                //System.out.println(removedList);
             }
-            for (String key:removedKeyList){
+            for (String key:removedKeys){
                 graph.remove(key);
             }
             System.out.println("max weight after frequent hashtags filter: "+ Collections.max(graph.values()));
@@ -335,8 +340,8 @@ public class Event_detection {
             }
         });
         //System.out.println(info);
-        System.out.println("# of total nodes: "+ Dic.size());
-        System.out.println("# of total edges: "+ graph.size());
+        //System.out.println("final # of total nodes: "+ Dic.size());
+        //System.out.println("final # of total edges: "+ graph.size());
     }
     public static void createExcel(String path_info, String path_his) throws IOException {
         try {
@@ -516,8 +521,35 @@ public class Event_detection {
         });
         return seenNodes.size();
     }
+    public static HashMap ExcelToHashMap(String path) {
+        try {
+            FileInputStream file = new FileInputStream(new File(path));
+            Workbook workbook = new XSSFWorkbook(file);
+            Sheet sheet = workbook.getSheetAt(0); // assuming data is in the first sheet
+
+            for (Row row : sheet) {
+                Cell keyCell = row.getCell(0);
+                Cell valueCell = row.getCell(1);
+                String key = keyCell.getStringCellValue();
+                String value = valueCell.getStringCellValue();
+                if (value.equals("y")){
+                    dataMap.put(key, value);
+                }
+            }
+
+            workbook.close();
+            file.close();
+            // use the hashmap as needed
+            //System.out.println(dataMap);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return dataMap;
+    }
     public static void main(String[] args) throws Exception {
-        String path = "Dataset/test.txt"; // input tweets file
+        String path = "Dataset/2016-06-24-all.txt"; // input tweets file
         String path_2 = "stopwords.txt"; // input stopwords file
         String path_3 = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String path_graph = "preprocessing results/graph.txt"; // output graph file
@@ -525,14 +557,15 @@ public class Event_detection {
         String path_his = "preprocessing results/Histogram.xlsx"; // output histogram file
         String path_hashtag = "preprocessing results/Hashtags.xlsx";
         String path_mention = "preprocessing results/Mentions.txt";
-        RT = false; // remove retweets?
+        String path_rmHashtags = "frequentHashtags.xlsx";
+        RT = true; // remove retweets?
         ST = true; // remove stopwords?
         POS = true; // use the part of speech method? (POS)
         Pru = true; // remove unwanted weights? pruning-(removing outliers, finding max weight, and frequency filter)
         KR = true; // save removed words in a file?
         FH = true; // remove words that have frequent hashtags?
         graph_building(path, path_2, path_3); //building the graph + preprocessing
-        graph_writing(path_graph); //pruning-removing edges with unwanted weights
+        graph_writing(path_graph, path_rmHashtags); //pruning-removing edges with unwanted weights
         Dic_building();
         createExcel(path_info, path_his);
         if (KR){RW_file_writing(path_hashtag, path_mention);} // writing removed words, separately
