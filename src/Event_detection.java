@@ -30,6 +30,13 @@ public class Event_detection {
     public static Map<String, Integer> hashtags = new HashMap<>();
     public static List<String> mentions = new ArrayList<String>();
     public static Map<String, Integer> word_frequency = new HashMap<>();
+    public static int removedUnwantedLength = 0;
+    public static int removedStopwords = 0;
+    public static int removedRetweets = 0;
+    public static int removedHashtags = 0;
+    public static int removedMentions = 0;
+    public static int removedNonEnglishtweets = 0;
+    public static int removedNon_Nouns = 0;
     public static interface myInterface {
         void building() throws Exception;
     }
@@ -77,10 +84,17 @@ public class Event_detection {
                     String tweet = (String) jo.get("text"); // getting tweets
                     String[] tokens;
                     if (POS){ // applying part of speech method
-                        tweet = tweet.replaceAll("http\\p{L}+", "").replaceAll("[^a-zA-Z'@# \\s]+", "").toLowerCase().replaceAll("\\b[tT][cC][oO]\\w*\\b","");
+                        tweet = tweet.replaceAll("http\\p{L}+", "")
+                                .replaceAll("[^a-zA-Z'@# \\s]+", "")
+                                .toLowerCase()
+                                .replaceAll("\\b[tT][cC][oO]\\w*\\b","");
                         tokens = PosTagger_Performance.main(tweet).toArray(String[]::new);
                     }else{
-                        tokens = tweet.replaceAll("http\\p{L}+", "").replaceAll("[^a-zA-Z@# ]", "").toLowerCase().replaceAll("\\b[tT][cC][oO]\\w*\\b","").split("\\s+"); // tokenizing and preprocessing
+                        tokens = tweet.replaceAll("http\\p{L}+", "")
+                                .replaceAll("[^a-zA-Z@# ]", "")
+                                .toLowerCase()
+                                .replaceAll("\\b[tT][cC][oO]\\w*\\b","")
+                                .split("\\s+"); // tokenizing and preprocessing
                         for(String x:tokens){
                             if (x.startsWith("@") && x.length()>1){
                                 if(!findmatch(mentions, x) && KR){
@@ -89,6 +103,7 @@ public class Event_detection {
                                 List<String> List = new ArrayList<String>(Arrays.asList(tokens));
                                 List.remove(x);
                                 tokens = List.toArray(new String[0]);
+                                removedMentions++;
                             }else if(x.startsWith("#") && x.length()>1) {
                                 if (!hashtags.containsKey(x) && KR) {
                                     hashtags.put(x, 1);
@@ -98,14 +113,17 @@ public class Event_detection {
                                 List<String> List_2 = new ArrayList<String>(Arrays.asList(tokens));
                                 List_2.remove(x);
                                 tokens = List_2.toArray(new String[0]);
+                                removedHashtags++;
                             }else if(findmatch(stopwords, x)){
                                 List<String> List_3 = new ArrayList<String>(Arrays.asList(tokens));
                                 List_3.remove(x);
                                 tokens = List_3.toArray(new String[0]);
+                                removedStopwords++;
                             }else if((x.length()<4 || x.length()>21)){
                                 List<String> List_4 = new ArrayList<String>(Arrays.asList(tokens));
                                 List_4.remove(x);
                                 tokens = List_4.toArray(new String[0]);
+                                removedUnwantedLength++;
                             }
                         }
                     }
@@ -162,20 +180,34 @@ public class Event_detection {
             if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT){  // removing retweets
                 //System.out.println("1 " + iter);
                 i.building();
+            }else if (jo.get("retweeted_status") != null && RT){
+                removedRetweets++;
+            }else if (!jo.get("lang").equals("en") && RT){
+                removedNonEnglishtweets++;
             }
-            else if (jo.get("text") != null && jo.get("lang").equals("en") && !RT){ // including retweets
+            if (jo.get("text") != null && jo.get("lang").equals("en") && !RT){ // including retweets
                 //System.out.println("2 " + iter);
                 i.building();
+            } else if (!jo.get("lang").equals("en") && !RT) {
+                removedNonEnglishtweets++;
             }
 ///////////////////////////////////////////////////////////////////////////////////////////////
         }
         //System.out.println(dictionary_list);
         //System.out.println(graph);
         //System.out.println(max_weight);
+        System.out.println("\n Statistics of removed words after preprocessing step: \n");
+        System.out.println("# of removed mentions: " + removedMentions);
+        System.out.println("# of removed Hashtags: " + removedHashtags);
+        System.out.println("# of removed stopwords: " + removedStopwords);
+        System.out.println("# of removed words with unwanted length: " + removedUnwantedLength);
+        System.out.println("# of removed retweets: " + removedRetweets);
+        System.out.println("# of removed non-English tweets: " + removedNonEnglishtweets + "\n");
     }
     public static void graph_writing(String path_graph) throws IOException {
         FileWriter fw = new FileWriter(path_graph); // building the graph file
         System.out.println("Writing the graph file...");
+        System.out.println("\n Statistics of graph's nodes and edges after pruning step: \n");
         ////////////////////////////////////// finding and removing outliers and unwanted weights
         if (Pru){ // pruning the graph
             HashMap<Integer, Integer> weights = new HashMap<>();
@@ -189,16 +221,22 @@ public class Event_detection {
             //System.out.println("sum_sd: " + sum_sd);
             max_weight = Collections.max(graph.values());
             System.out.println("max weight before removing outliers: "+max_weight);
+            System.out.println("# of nodes before removing outliers: "+getNumOfNodes(graph));
+            System.out.println("# of edges before removing outliers: "+graph.size());
             graph.values().removeIf(v -> v<(array[0] - 3*array[1])); // removing edges with unwanted weights
             graph.values().removeIf(v -> v>(array[0] + 3*array[1]));
 
             max_weight = Collections.max(graph.values());
             System.out.println("max weight after removing outliers: "+max_weight);
+            System.out.println("# of nodes after removing outliers: "+getNumOfNodes(graph));
+            System.out.println("# of edges sfter removing outliers: "+graph.size());
             graph.values().removeIf(v -> v<(0.01*max_weight)); // removing edges with unwanted weights
             graph.values().removeIf(v -> v>(0.9*max_weight));
 
             max_weight = Collections.max(graph.values());
             System.out.println("max weight after frequency filter: "+max_weight);
+            System.out.println("# of nodes after frequency filter: "+getNumOfNodes(graph));
+            System.out.println("# of edges after frequency filter: "+graph.size());
 
             System.out.println("mue: "+array[0]);
             //System.out.println("sum_d: "+sum_sd);
@@ -230,6 +268,9 @@ public class Event_detection {
             for (String key:removedKeyList){
                 graph.remove(key);
             }
+            System.out.println("max weight after frequent hashtags filter: "+ Collections.max(graph.values()));
+            System.out.println("# of nodes after frequent hashtags filter: "+getNumOfNodes(graph));
+            System.out.println("# of edges after frequent hashtags filter: "+graph.size() + "\n");
         }
         ///////////////////////////////////////////////////////////////////////////////////////////
         graph.forEach((k,v) -> {
@@ -462,8 +503,21 @@ public class Event_detection {
         results[1] = Math.sqrt(sum_sd/(N.size() - 1)); //sd
         return results;
     }
+    public static int getNumOfNodes (Map<String, Integer> graph){
+        ArrayList<String> seenNodes = new ArrayList<String>();
+        graph.forEach((k,v) -> {
+            StringTokenizer tokenizer = new StringTokenizer(k);
+            while (tokenizer.hasMoreTokens()) {
+                String word = tokenizer.nextToken();
+                if (!seenNodes.contains(word)) {
+                    seenNodes.add(word);
+                }
+            }
+        });
+        return seenNodes.size();
+    }
     public static void main(String[] args) throws Exception {
-        String path = "Dataset/2016-06-24-all.txt"; // input tweets file
+        String path = "Dataset/test.txt"; // input tweets file
         String path_2 = "stopwords.txt"; // input stopwords file
         String path_3 = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String path_graph = "preprocessing results/graph.txt"; // output graph file
@@ -471,7 +525,7 @@ public class Event_detection {
         String path_his = "preprocessing results/Histogram.xlsx"; // output histogram file
         String path_hashtag = "preprocessing results/Hashtags.xlsx";
         String path_mention = "preprocessing results/Mentions.txt";
-        RT = true; // remove retweets?
+        RT = false; // remove retweets?
         ST = true; // remove stopwords?
         POS = true; // use the part of speech method? (POS)
         Pru = true; // remove unwanted weights? pruning-(removing outliers, finding max weight, and frequency filter)
