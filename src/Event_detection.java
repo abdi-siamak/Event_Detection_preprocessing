@@ -508,6 +508,16 @@ public class Event_detection {
         results[1] = Math.sqrt(sum_sd/(N.size() - 1)); //sd
         return results;
     }
+    public static int getNumOfNodes (Map<String, Integer> graph) {
+        Set<String> nodes = new HashSet<String>();
+        for (String edge : graph.keySet()) {
+            String[] parts = edge.split(" ");
+            nodes.add(parts[0]);
+            nodes.add(parts[1]);
+        }
+        return nodes.size();
+    }
+    /*
     public static int getNumOfNodes (Map<String, Integer> graph){
         ArrayList<String> seenNodes = new ArrayList<String>();
         graph.forEach((k,v) -> {
@@ -521,6 +531,7 @@ public class Event_detection {
         });
         return seenNodes.size();
     }
+    */
     public static HashMap ExcelToHashMap(String path) {
         try {
             FileInputStream file = new FileInputStream(new File(path));
