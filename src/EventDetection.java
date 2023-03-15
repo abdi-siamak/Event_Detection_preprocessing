@@ -25,7 +25,8 @@ public class EventDetection {
     private static Boolean POS; // switch for activating POS
     private static Boolean Pru; //switch for activating pruning methods
     public static Boolean KR; // switch for saving removed words
-    private static Boolean FH; // switch for removing words that have frequent hashtags
+    private static Boolean FW; // switch for removing words that don't represent a specific topic
+    private static boolean MAP; // switch for mapping the graph to sequential order ids
     private static int index = 0; // index of dictionary
     public static List<String> stopwords = new ArrayList<>();
     public static Map<String, String> lemmatizerWords = new HashMap<>();
@@ -40,6 +41,7 @@ public class EventDetection {
     private static int removedNonEnglishTweets = 0;
     public static int removedNon_Nouns = 0;
     private static HashMap<String, String> frequentHashtags = new HashMap<>();
+    private static HashMap<Integer, Integer> idMap = new HashMap<>();
     private interface myInterface {
         void building() throws Exception;
     }
@@ -206,7 +208,7 @@ public class EventDetection {
         System.out.println("# of removed retweets: " + removedRetweets);
         System.out.println("# of removed non-English tweets: " + removedNonEnglishTweets + "\n");
     }
-    public static void graphWriting(String pathGraph, String pathFrequentHashtags) throws IOException {
+    public static void graphWriting(String pathGraph, String pathFilteredOut) throws IOException {
         FileWriter fw = new FileWriter(pathGraph); // building the graph file
         System.out.println("Writing the graph file...");
         ////////////////////////////////////// finding and removing outliers and unwanted weights
@@ -251,24 +253,32 @@ public class EventDetection {
             System.out.println("# of edges: "+graph.size() + "\n");
         }
         ////////////////////////////////////////////////////////////////////////////////////////////
-        if (FH){ // removing frequent hashtags
-            ArrayList<List<Integer>> removedKeys = new ArrayList<>();
-            ExcelToHashMap(pathFrequentHashtags); // getting the Hashmap (frequentHashtags) contains hashtags that their related words need to be removed
-            for (List<Integer> key:graph.keySet()){ // removing words of the selected hashtags from the graph
-                StringBuilder stringBuilder = new StringBuilder(100);
-                StringBuilder stringBuilder2 = new StringBuilder(100);
-                //System.out.println(stringBuilder.append("#").append(getKey(dictionary_list,indexList.get(0))));
-                if (frequentHashtags.containsKey(stringBuilder.append("#").append(getKey(dictionaryList,key.get(0))).toString())||frequentHashtags.containsKey(stringBuilder2.append("#").append(getKey(dictionaryList,key.get(1))).toString())) {
-                    removedKeys.add(key);
-                    //System.out.println("1: "+key);
+        if (FW){ // filtered-out words
+            ArrayList<String> removewords = new ArrayList<>(); // words that should be removed from the graph
+            ArrayList<List<Integer>> removeKeys = new ArrayList<>();
+            removewords = loadFilterOutWords (pathFilteredOut);
+            for (Map.Entry<List<Integer>, Integer> entry : graph.entrySet()) {
+                if (removewords.contains(getKey(dictionaryList,entry.getKey().get(0)))||removewords.contains(getKey(dictionaryList,entry.getKey().get(1)))){
+                    removeKeys.add(entry.getKey());
                 }
             }
-            for (List<Integer> key:removedKeys){
+            for (List<Integer> key:removeKeys){
                 graph.remove(key);
             }
             System.out.println("max weight after frequent hashtags filter: "+ Collections.max(graph.values()));
             System.out.println("# of nodes after frequent hashtags filter: "+getNumOfNodes(graph));
             System.out.println("# of edges after frequent hashtags filter: "+graph.size() + "\n");
+        }
+        ///////////////////////////////////////////////////////////////////////////////////////////
+        if (MAP){
+            //System.out.println("1. " + dictionaryList);
+            idMap = getMapper (graph); // getting a map table (mapping old ids to new ids)
+            //System.out.println("2. " + idMap);
+            dictionaryList = updateDictionary(dictionaryList, idMap); // updating the dictionary based on the map table (new ids)
+            //System.out.println("3. " + dictionaryList);
+            //System.out.println("4. " + graph);
+            graph = updateGraph(graph, idMap); // updating the graph based on the map table (new ids)
+            //System.out.println("5. " + graph);
         }
         ///////////////////////////////////////////////////////////////////////////////////////////
         graph.forEach((k,v) -> { // writing the pruned graph
@@ -508,6 +518,15 @@ public class EventDetection {
         return seenNodes.size();
     }
     */
+    public static ArrayList<String> loadFilterOutWords (String path) throws FileNotFoundException {
+        ArrayList<String> words = new ArrayList<>();
+        File textFile = new File(path);
+        Scanner in = new Scanner(textFile);
+        while (in.hasNextLine()){
+            words.add(in.nextLine());
+        }
+        return words;
+    }
     public static HashMap ExcelToHashMap(String path) throws IOException{ // loading the frequent hashtags file, words that should be removed
             FileInputStream file = new FileInputStream(path);
             Workbook workbook = new XSSFWorkbook(file);
@@ -528,8 +547,60 @@ public class EventDetection {
             //System.out.println(dataMap);
         return frequentHashtags;
     }
+    public static HashMap<Integer, Integer> getMapper (Map<List<Integer>, Integer> graph){
+        HashMap<Integer, Integer> mapping = new HashMap<>(); // creating a mapping table
+        int count = 0; // mapping the nodes starting from zero
+        // Loop through remaining nodes in graph hashmap to create the mapping table
+        for (Map.Entry<List<Integer>, Integer> entry : graph.entrySet()) {
+            List<Integer> nodes = entry.getKey(); // get the old keys
+            //int weight = entry.getValue();
+            for (int node : nodes) {
+                if (!mapping.containsKey(node)) {
+                    // Add new mapping
+                    mapping.put(node, count); // update with the new keys
+                    count++;
+                }
+            }
+        }
+        return mapping;
+    }
+    public static Map<String, Integer> updateDictionary(Map<String, Integer> dic, HashMap<Integer, Integer> mapping){
+        // updating the dictionary by removing terms that were removed from the graph
+        ArrayList<String> removedKeys = new ArrayList<>();
+        for (Map.Entry<String, Integer> entry : dic.entrySet()) {
+            if (!mapping.containsKey(entry.getValue())){
+                removedKeys.add(entry.getKey()); // finding records that should be removed from the dictionary
+            }
+        }
+        for (String key:removedKeys){
+            dic.remove(key);
+        }
+        // Update node IDs in dictionary hashmap
+        for (Map.Entry<String, Integer> entry : dic.entrySet()) {
+            String key = entry.getKey();
+            int value = entry.getValue(); // getting the old id
+            int mappedValue = mapping.get(value); // getting the new id
+            dic.put(key, mappedValue); // update the entry
+        }
+        return dic;
+    }
+    public static Map<List<Integer>, Integer>  updateGraph (Map<List<Integer>, Integer> graph, HashMap<Integer, Integer> mapping){
+        Map<List<Integer>, Integer> tempMap = new HashMap<>();
+        // Update node IDs in graph hashmap
+        for (Map.Entry<List<Integer>, Integer> entry : graph.entrySet()) {
+            List<Integer> nodes = entry.getKey();
+            for (int i = 0; i < nodes.size(); i++) {
+                int node = nodes.get(i); // getting the old id
+                int mappedNode = mapping.get(node); // getting the new id
+                nodes.set(i, mappedNode);
+            }
+            int weight = entry.getValue();
+            tempMap.put(nodes, weight); // update the graph's entry
+        }
+        return tempMap;
+    }
     public static void main(String[] args) throws Exception {
-        String pathTweets = "Dataset/2016-06-24-all.txt"; // input tweets file
+        String pathTweets = "Dataset/test.txt"; // input tweets file
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String pathGraph = "preprocessing results/graph.txt"; // output graph file
@@ -537,18 +608,19 @@ public class EventDetection {
         String pathHistogram = "preprocessing results/Histogram.xlsx"; // output histogram file
         String pathHashtags = "preprocessing results/Hashtags.xlsx";
         String pathMentions = "preprocessing results/Mentions.txt";
-        String pathFrequentHashtags = "frequentHashtags.xlsx";
+        String pathFilteredOut = "filteredOutWords.txt";
         /////////////////////////////// Options ///////////////////////////////////////////////////////////////
         RT = true; // remove retweets?
         ST = true; // remove stopwords?
         POS = true; // use the part of speech method? (POS)
         Pru = true; // remove unwanted weights? pruning-(1.removing outliers, 2.finding max weight, and 3.frequency filter)
         KR = true; // save removed words?
-        FH = true; // remove words that have frequent hashtags? (frequent hashtags filter)
+        FW = true; // remove words that don't represent a specific topic (filtered out words)
+        MAP = true; // mapping the graph to sequential order ids
         ///////////////////////////////////////////////////////////////////////////////////////////////////////
         long startTime = System.currentTimeMillis();
         graphBuilding(pathTweets, pathStopwords, pathLemmatizers); // building the graph + preprocessing
-        graphWriting(pathGraph, pathFrequentHashtags); // pruning-removing edges with unwanted weights
+        graphWriting(pathGraph, pathFilteredOut); // pruning-removing edges with unwanted weights
         DicBuilding();
         createExcel(pathDicInfo, pathHistogram);
         if (KR){fileWriting(pathHashtags, pathMentions);} // writing removed words, separately
