@@ -43,7 +43,7 @@ public class PosTaggerPerformance {
                 List_2.remove(x);
                 tokens = List_2.toArray(new String[0]);
                 EventDetection.removedHashtags++;
-            }else if(EventDetection.findMatch(EventDetection.stopwords, x)){
+            }else if(EventDetection.stopwords.containsKey(x)){
                 List<String> List_3 = new ArrayList<>(Arrays.asList(tokens));
                 List_3.remove(x);
                 tokens = List_3.toArray(new String[0]);
@@ -71,9 +71,15 @@ public class PosTaggerPerformance {
             if (tags[i].contains("NN")){
                 tokens[i] = tokens[i].replaceAll("[^a-zA-Z0-9\\s]+", "");
                 if(tags[i].equals("NNS") && EventDetection.lemmatizerWords.get(tokens[i]) != null){
-                    POS_nouns.add(EventDetection.lemmatizerWords.get(tokens[i]));
+                    if (!EventDetection.filterOutWords.containsKey(EventDetection.lemmatizerWords.get(tokens[i]))){
+                        POS_nouns.add(EventDetection.lemmatizerWords.get(tokens[i]));
+                        EventDetection.removedFilteredOutWords++;
+                    }
                 }else {
-                    POS_nouns.add(tokens[i]);
+                    if (!EventDetection.filterOutWords.containsKey(tokens[i])){
+                        POS_nouns.add(tokens[i]);
+                        EventDetection.removedFilteredOutWords++;
+                    }
                 }
             }else{
                 EventDetection.removedNon_Nouns++;

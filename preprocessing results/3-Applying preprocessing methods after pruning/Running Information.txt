@@ -1,26 +1,26 @@
- Information of removed words after preprocessing steps: 
+ Information of removed words after preprocessing step: 
 
+# of removed retweets: 27217
+# of removed non-English tweets: 6160
 # of removed mentions: 3920
 # of removed Hashtags: 8827
 # of removed stopwords: 78788
 # of removed words with unwanted length: 8379
-# of removed retweets: 27217
-# of removed non-English tweets: 6160
+# of filtered-out words: 29660
 
- Information of graph's nodes and edges after pruning steps: 
 
-max weight before removing outliers: 1059
-# of nodes before removing outliers: 6000
-# of edges before removing outliers: 37705
-max weight after removing outliers: 241
-# of nodes after removing outliers: 6000
-# of edges sfter removing outliers: 37704
-max weight after frequency filter: 180
-# of nodes after frequency filter: 1089
-# of edges after frequency filter: 3779
-mue: 73.88
-sd: 111.42930720887801
-max weight after frequent hashtags filter: 143
-# of nodes after frequent hashtags filter: 880
-# of edges after frequent hashtags filter: 2425
+ Information of the graph after pruning step: 
+
+max weight before removing outliers: 126
+# of nodes before removing outliers: 5592
+# of edges before removing outliers: 24696
+max weight after removing outliers: 120
+# of nodes after removing outliers: 5592
+# of edges sfter removing outliers: 24695
+max weight after frequency filter: 60
+# of nodes after frequency filter: 726
+# of edges after frequency filter: 1560
+mue: 30.75
+sd: 30.80938085580346
+
 The total time of processing: 61(min)

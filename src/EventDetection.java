@@ -28,8 +28,9 @@ public class EventDetection {
     private static Boolean FW; // switch for removing words that don't represent a specific topic
     private static boolean MAP; // switch for mapping the graph to sequential order ids
     private static int index = 0; // index of dictionary
-    public static List<String> stopwords = new ArrayList<>();
+    public static Map<String, String> stopwords = new HashMap<>();
     public static Map<String, String> lemmatizerWords = new HashMap<>();
+    public static Map<String, String> filterOutWords = new HashMap<>();
     public static Map<String, Integer> hashtags = new HashMap<>(); // for keeping removed hashtags
     public static List<String> mentions = new ArrayList<>(); // for keeping removed mentions
     private static Map<String, Integer> wordFrequency = new HashMap<>();
@@ -40,19 +41,21 @@ public class EventDetection {
     public static int removedMentions = 0;
     private static int removedNonEnglishTweets = 0;
     public static int removedNon_Nouns = 0;
+    public static int removedFilteredOutWords = 0;
     private static HashMap<String, String> frequentHashtags = new HashMap<>();
     private static HashMap<Integer, Integer> idMap = new HashMap<>();
     private interface myInterface {
         void building() throws Exception;
     }
-    public static void graphBuilding(String pathTweets, String pathStopwords,String pathLemmatizers) throws Exception {
+    public static void graphBuilding(String pathTweets, String pathStopwords,String pathLemmatizers, String pathFilteredOut) throws Exception {
         if (ST){
             BufferedReader reader = new BufferedReader(new FileReader(pathStopwords)); // loading the stopwords file
             String l = reader.readLine();
             while (l != null) {
-                stopwords.add(l);
+                stopwords.put(l, null);
                 l = reader.readLine();
             }
+            //System.out.println(stopwords);
         }
         if (POS){
             BufferedReader reader = new BufferedReader(new FileReader(pathLemmatizers)); // loading the lemmatizer words
@@ -63,6 +66,15 @@ public class EventDetection {
                 w = reader.readLine();
             }
             //System.out.println(lemmatizerWords);
+        }
+        if (FW){
+            BufferedReader reader = new BufferedReader(new FileReader(pathFilteredOut)); // loading the filter out words
+            String w = reader.readLine();
+            while (w != null) {
+                filterOutWords.put(w, null);
+                w = reader.readLine();
+            }
+            //System.out.println(filterOutWords);
         }
         File file = new File(pathTweets);
         BufferedReader reader = new BufferedReader(new FileReader(file)); // loading the tweets
@@ -118,7 +130,7 @@ public class EventDetection {
                                 List.remove(x);
                                 tokens = List.toArray(new String[0]);
                                 removedHashtags++;
-                            }else if(findMatch(stopwords, x)){
+                            }else if(stopwords.containsKey(x)){
                                 List<String> List = new ArrayList<>(Arrays.asList(tokens));
                                 List.remove(x);
                                 tokens = List.toArray(new String[0]);
@@ -128,6 +140,11 @@ public class EventDetection {
                                 List.remove(x);
                                 tokens = List.toArray(new String[0]);
                                 removedUnwantedLength++;
+                            }else if(filterOutWords.containsKey(x)){
+                                List<String> List = new ArrayList<>(Arrays.asList(tokens));
+                                List.remove(x);
+                                tokens = List.toArray(new String[0]);
+                                removedFilteredOutWords++;
                             }
                         }
                     }
@@ -201,14 +218,15 @@ public class EventDetection {
         //System.out.println(graph);
         //System.out.println(maxWeight);
         System.out.println("\n Information of removed words after preprocessing step: \n");
+        System.out.println("# of removed retweets: " + removedRetweets);
+        System.out.println("# of removed non-English tweets: " + removedNonEnglishTweets);
         System.out.println("# of removed mentions: " + removedMentions);
         System.out.println("# of removed Hashtags: " + removedHashtags);
         System.out.println("# of removed stopwords: " + removedStopwords);
         System.out.println("# of removed words with unwanted length: " + removedUnwantedLength);
-        System.out.println("# of removed retweets: " + removedRetweets);
-        System.out.println("# of removed non-English tweets: " + removedNonEnglishTweets + "\n");
+        System.out.println("# of filtered-out words: " + removedFilteredOutWords + "\n");
     }
-    public static void graphWriting(String pathGraph, String pathFilteredOut) throws IOException {
+    public static void graphWriting(String pathGraph) throws IOException {
         FileWriter fw = new FileWriter(pathGraph); // building the graph file
         System.out.println("Writing the graph file...");
         ////////////////////////////////////// finding and removing outliers and unwanted weights
@@ -223,6 +241,7 @@ public class EventDetection {
             double[] array = getMueSd (weights.keySet()); // getting mue, double[0] and sd, double[1]
             //double sd = get_mue_sd(weights.keySet())[1];
             //System.out.println("sum_sd: " + sum_sd);
+
             maxWeight = Collections.max(graph.values());
             System.out.println("max weight before removing outliers: "+maxWeight);
             System.out.println("# of nodes before removing outliers: "+getNumOfNodes(graph));
@@ -234,7 +253,7 @@ public class EventDetection {
             System.out.println("max weight after removing outliers: "+maxWeight);
             System.out.println("# of nodes after removing outliers: "+getNumOfNodes(graph));
             System.out.println("# of edges sfter removing outliers: "+graph.size());
-            graph.values().removeIf(v -> v<(0.01*maxWeight)); // removing edges with unwanted weights
+            graph.values().removeIf(v -> v<(0.02*maxWeight)); // removing edges with unwanted weights
             graph.values().removeIf(v -> v>(0.9*maxWeight));
 
             maxWeight = Collections.max(graph.values());
@@ -244,7 +263,7 @@ public class EventDetection {
 
             System.out.println("mue: "+array[0]);
             //System.out.println("sum_d: "+sum_sd);
-            System.out.println("sd: "+array[1]);
+            System.out.println("sd: "+array[1] + "\n");
         }else{
             System.out.println("\n Information of the graph: \n");
             maxWeight = Collections.max(graph.values());
@@ -253,6 +272,7 @@ public class EventDetection {
             System.out.println("# of edges: "+graph.size() + "\n");
         }
         ////////////////////////////////////////////////////////////////////////////////////////////
+        /*
         if (FW){ // filtered-out words
             ArrayList<String> removewords = new ArrayList<>(); // words that should be removed from the graph
             ArrayList<List<Integer>> removeKeys = new ArrayList<>();
@@ -270,6 +290,7 @@ public class EventDetection {
             System.out.println("# of edges after frequent hashtags filter: "+graph.size() + "\n");
         }
         ///////////////////////////////////////////////////////////////////////////////////////////
+         */
         if (MAP){
             //System.out.println("1. " + dictionaryList);
             idMap = getMapper (graph); // getting a map table (mapping old ids to new ids)
@@ -283,7 +304,7 @@ public class EventDetection {
         ///////////////////////////////////////////////////////////////////////////////////////////
         graph.forEach((k,v) -> { // writing the pruned graph
             try {
-                fw.write(k + " " + v +"\n");
+                fw.write(k.get(0) + " " + k.get(1) + " " + v +"\n");
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -600,7 +621,7 @@ public class EventDetection {
         return tempMap;
     }
     public static void main(String[] args) throws Exception {
-        String pathTweets = "Dataset/test.txt"; // input tweets file
+        String pathTweets = "Dataset/2016-06-24-all.txt"; // input tweets file
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String pathGraph = "preprocessing results/graph.txt"; // output graph file
@@ -619,8 +640,8 @@ public class EventDetection {
         MAP = true; // mapping the graph to sequential order ids
         ///////////////////////////////////////////////////////////////////////////////////////////////////////
         long startTime = System.currentTimeMillis();
-        graphBuilding(pathTweets, pathStopwords, pathLemmatizers); // building the graph + preprocessing
-        graphWriting(pathGraph, pathFilteredOut); // pruning-removing edges with unwanted weights
+        graphBuilding(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut); // building the graph + preprocessing
+        graphWriting(pathGraph); // pruning-removing edges with unwanted weights
         DicBuilding();
         createExcel(pathDicInfo, pathHistogram);
         if (KR){fileWriting(pathHashtags, pathMentions);} // writing removed words, separately
