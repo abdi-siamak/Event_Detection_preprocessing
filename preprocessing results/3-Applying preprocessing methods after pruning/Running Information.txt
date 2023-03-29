@@ -23,4 +23,10 @@ max weight after frequency filter: 60
 mue: 30.75
 sd: 30.80938085580346
 
+ Information about the file filteredOutWords:
+
+0 to 1562: from hashtag
+1562 to ... : expert
+
+
 The total time of processing: 61(min)
