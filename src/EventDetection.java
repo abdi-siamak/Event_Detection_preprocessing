@@ -3,6 +3,8 @@ import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.sun.deploy.util.StringUtils;
+import opennlp.tools.tokenize.WhitespaceTokenizer;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -76,143 +78,163 @@ public class EventDetection {
             }
             //System.out.println(filterOutWords);
         }
-        File file = new File(pathTweets);
-        BufferedReader reader = new BufferedReader(new FileReader(file)); // loading the tweets
-///////////////////////////////////////////////////
-        LineNumberReader lineNumberReader = new LineNumberReader(new FileReader(file));
-        lineNumberReader.skip(Long.MAX_VALUE);
-        int lines = lineNumberReader.getLineNumber();
-        lineNumberReader.close();
-///////////////////////////////////////////////////
-        String line = reader.readLine();
-///////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////// loading tweets
+        File dir = new File(pathTweets);
+        String[] folders = dir.list(); // list of folders
+        ArrayList<String> files = new ArrayList<>(); // list of files within folders
+        for (String folder:folders){
+            if (!folder.equals(".DS_Store")){
+                File subDir = new File(pathTweets + "/" +folder);
+                for (String file : subDir.list()){
+                    files.add(pathTweets + folder + "/" + file);
+                }
+            }
+        }
+        int lines;
         int iter = 0;
         float percentage;
-///////////////////////////////////////////////////
-        while (line != null) {
-            Object obj = new JSONParser().parse(line);
-            // typecasting obj to JSONObject
-            JSONObject jo = (JSONObject) obj;
-            ////////////////////////////////////// Preprocessing
-            myInterface i = new myInterface() {
-                @Override
-                public void building() throws Exception {
-                    String tweet = (String) jo.get("text"); // getting tweets
-                    String[] tokens;
-                    if (POS){ // applying part of speech method
-                        tweet = tweet.replaceAll("http\\p{L}+", "")
-                                .replaceAll("[^a-zA-Z'@# \\s]+", "")
-                                .toLowerCase()
-                                .replaceAll("\\b[tT][cC][oO]\\w*\\b","");
-                        tokens = PosTaggerPerformance.main(tweet).toArray(String[]::new);
-                    }else{
-                        tokens = tweet.replaceAll("http\\p{L}+", "")
-                                .replaceAll("[^a-zA-Z@# ]", "")
-                                .toLowerCase()
-                                .replaceAll("\\b[tT][cC][oO]\\w*\\b","")
-                                .split("\\s+"); // tokenizing and preprocessing
-                        for(String x:tokens){
-                            if (x.startsWith("@") && x.length()>1){
-                                if(!findMatch(mentions, x) && KR){
-                                    mentions.add(x);
+        lines = getNumOfLines(files, pathTweets); // getting the number of all tweets
+        for (String file : files) {
+            if (!file.contains(".DS_Store")){
+                System.out.println("Reading file: " + file);
+                BufferedReader reader = new BufferedReader(new FileReader(file));
+///////////////////////////////////////////////////////////////////////////////////
+                String line = reader.readLine();
+                ///////////////////////////////////////////////////
+                while (line != null) {
+                    //System.out.println(line);
+                    Object obj = new JSONParser().parse(line);
+                    // typecasting obj to JSONObject
+                    JSONObject jo = (JSONObject) obj;
+                    ////////////////////////////////////// Preprocessing
+                    myInterface i = new myInterface() {
+                        @Override
+                        public void building() throws Exception {
+                            String tweet = (String) jo.get("text"); // getting tweets
+                            String[] tokens;
+                            if (POS){ // applying part of speech method
+                                tweet = tweet.replaceAll("http\\p{L}+", "")
+                                        .replaceAll("[^a-zA-Z'@# \\s]+", "")
+                                        .toLowerCase()
+                                        .replaceAll("\\b[tT][cC][oO]\\w*\\b","");
+                                //tokens = PosTaggerPerformance.main(tweet).toArray(String[]::new);
+                                List<String> tokenList = PosTaggerPerformance.main(tweet);
+                                tokens = tokenList.toArray(new String[tokenList.size()]);
+                            }else{
+                                tokens = tweet.replaceAll("http\\p{L}+", "")
+                                        .replaceAll("[^a-zA-Z@# ]", "")
+                                        .toLowerCase()
+                                        .replaceAll("\\b[tT][cC][oO]\\w*\\b","")
+                                        .split("\\s+"); // tokenizing and preprocessing
+                                for(String x:tokens){
+                                    if (x.startsWith("@") && x.length()>1){
+                                        if(!findMatch(mentions, x) && KR){
+                                            mentions.add(x);
+                                        }
+                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
+                                        List.remove(x);
+                                        tokens = List.toArray(new String[0]);
+                                        removedMentions++;
+                                    }else if(x.startsWith("#") && x.length()>1) {
+                                        if (!hashtags.containsKey(x) && KR) {
+                                            hashtags.put(x, 1);
+                                        } else if (hashtags.containsKey(x) && KR) {
+                                            hashtags.put(x, hashtags.get(x) + 1);
+                                        }
+                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
+                                        List.remove(x);
+                                        tokens = List.toArray(new String[0]);
+                                        removedHashtags++;
+                                    }else if(stopwords.containsKey(x)){
+                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
+                                        List.remove(x);
+                                        tokens = List.toArray(new String[0]);
+                                        removedStopwords++;
+                                    }else if((x.length()<4 || x.length()>21)){
+                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
+                                        List.remove(x);
+                                        tokens = List.toArray(new String[0]);
+                                        removedUnwantedLength++;
+                                    }else if(filterOutWords.containsKey(x)){
+                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
+                                        List.remove(x);
+                                        tokens = List.toArray(new String[0]);
+                                        removedFilteredOutWords++;
+                                    }
                                 }
-                                List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                List.remove(x);
-                                tokens = List.toArray(new String[0]);
-                                removedMentions++;
-                            }else if(x.startsWith("#") && x.length()>1) {
-                                if (!hashtags.containsKey(x) && KR) {
-                                    hashtags.put(x, 1);
-                                } else if (hashtags.containsKey(x) && KR) {
-                                    hashtags.put(x, hashtags.get(x) + 1);
-                                }
-                                List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                List.remove(x);
-                                tokens = List.toArray(new String[0]);
-                                removedHashtags++;
-                            }else if(stopwords.containsKey(x)){
-                                List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                List.remove(x);
-                                tokens = List.toArray(new String[0]);
-                                removedStopwords++;
-                            }else if((x.length()<4 || x.length()>21)){
-                                List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                List.remove(x);
-                                tokens = List.toArray(new String[0]);
-                                removedUnwantedLength++;
-                            }else if(filterOutWords.containsKey(x)){
-                                List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                List.remove(x);
-                                tokens = List.toArray(new String[0]);
-                                removedFilteredOutWords++;
                             }
-                        }
-                    }
-                    Set<String> hSet = new HashSet<>();
-                    for (String x : tokens) {
-                        hSet.add(x); // converting to a set
-                        if (!wordFrequency.containsKey(x)){ // creating frequency of terms
-                            wordFrequency.put(x,  1);
-                        }else{
-                            int freq = wordFrequency.get(x);
-                            freq = freq + 1;
-                            wordFrequency.put(x,  freq);
-                        }
-                        if (!dictionaryList.containsKey(x)) { // adding to the dictionary
-                            dictionaryList.put(x,  index);
-                            index = index +1;
-                        }
-                    }
-                    //System.out.println("2 "+hSet);
-                    //System.out.println(dictionaryList);
+                            Set<String> hSet = new HashSet<>();
+                            for (String x : tokens) {
+                                hSet.add(x); // converting to a set
+                                if (!wordFrequency.containsKey(x)){ // creating frequency of terms
+                                    wordFrequency.put(x,  1);
+                                }else{
+                                    int freq = wordFrequency.get(x);
+                                    freq = freq + 1;
+                                    wordFrequency.put(x,  freq);
+                                }
+                                if (!dictionaryList.containsKey(x)) { // adding to the dictionary
+                                    dictionaryList.put(x,  index);
+                                    index = index +1;
+                                }
+                            }
+                            //System.out.println("2 "+hSet);
+                            //System.out.println(dictionaryList);
 ////////////////////////////////////////////////////////////////////////////////////////////////
-                    List<String> BOW = new ArrayList<>(hSet); // Bag Of Words
-                    List<Integer> BOI = new ArrayList<>(getSorted(BOW)); //sort the all words based on their indexes, Bag Of Indexes
-                    //System.out.println(BOI);
-                    for (int i = 0; i < BOI.size(); i++) {
-                        for (int j = i + 1; j < BOI.size(); j++) {
-                            List<Integer> tempList = new ArrayList<>();
-                            tempList.add(BOI.get(i));
-                            tempList.add(BOI.get(j));
-                            //System.out.println(tempList);
-                            if (graph.containsKey(tempList)) {
-                                //System.out.println(tempList);
-                                int tmp = graph.get(tempList);
-                                tmp = tmp + 1;
-                                graph.put(tempList, tmp);
-                            } else {
-                                graph.put(tempList, 1);
-                                //System.out.println(tempList);
+                            List<String> BOW = new ArrayList<>(hSet); // Bag Of Words
+                            List<Integer> BOI = new ArrayList<>(getSorted(BOW)); //sort the all words based on their indexes, Bag Of Indexes
+                            //System.out.println(BOI);
+                            for (int i = 0; i < BOI.size(); i++) {
+                                for (int j = i + 1; j < BOI.size(); j++) {
+                                    List<Integer> tempList = new ArrayList<>();
+                                    tempList.add(BOI.get(i));
+                                    tempList.add(BOI.get(j));
+                                    //System.out.println(tempList);
+                                    if (graph.containsKey(tempList)) {
+                                        //System.out.println(tempList);
+                                        int tmp = graph.get(tempList);
+                                        tmp = tmp + 1;
+                                        graph.put(tempList, tmp);
+                                    } else {
+                                        graph.put(tempList, 1);
+                                        //System.out.println(tempList);
+                                    }
+                                }
                             }
                         }
+                    };
+///////////////////////////////////////////////////////////////////////////////////////////////
+                    percentage = (float) iter * 100 / lines;
+                    //long startTime = System.nanoTime();
+                    if (percentage % 5 == 0) {
+                        System.out.println("Building the graph: " + percentage + " %");
                     }
-                }
-            };
+                    iter = iter + 1;
+                    line = reader.readLine(); // read next line
 ///////////////////////////////////////////////////////////////////////////////////////////////
-            percentage = (float) iter * 100 / lines;
-            //long startTime = System.nanoTime();
-            if (percentage % 5 == 0) {
-                System.out.println("Building the graph: " + percentage + " %");
-            }
-            iter = iter + 1;
-            line = reader.readLine(); // read next line
-///////////////////////////////////////////////////////////////////////////////////////////////
-            if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT){  // removing retweets
-                //System.out.println("1 " + iter);
-                i.building();
-            }else if (jo.get("text") != null && jo.get("retweeted_status") != null && RT){
-                removedRetweets++;
-            }else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT){
-                removedNonEnglishTweets++;
-            }
+                    //String data = (String) jo.get("created_at");
+                    //WhitespaceTokenizer whitespaceTokenizer= WhitespaceTokenizer.INSTANCE;
+                    //String[] tokens = whitespaceTokenizer.tokenize(data);
+                    if (true){
+                        if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT){  // removing retweets
+                            //System.out.println("1 " + iter);
+                            i.building();
+                        }else if (jo.get("text") != null && jo.get("retweeted_status") != null && RT){
+                            removedRetweets++;
+                        }else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT){
+                            removedNonEnglishTweets++;
+                        }
 
-            if (jo.get("text") != null && jo.get("lang").equals("en") && !RT){ // including retweets
-                //System.out.println("2 " + iter);
-                i.building();
-            } else if (jo.get("text") != null && !jo.get("lang").equals("en") && !RT) {
-                removedNonEnglishTweets++;
-            }
+                        if (jo.get("text") != null && jo.get("lang").equals("en") && !RT){ // including retweets
+                            //System.out.println("2 " + iter);
+                            i.building();
+                        } else if (jo.get("text") != null && !jo.get("lang").equals("en") && !RT) {
+                            removedNonEnglishTweets++;
+                        }
+                    }
 ///////////////////////////////////////////////////////////////////////////////////////////////
+                }
+            }
         }
         //System.out.println(dictionaryList);
         //System.out.println(graph);
@@ -252,7 +274,7 @@ public class EventDetection {
             maxWeight = Collections.max(graph.values());
             System.out.println("max weight after removing outliers: "+maxWeight);
             System.out.println("# of nodes after removing outliers: "+getNumOfNodes(graph));
-            System.out.println("# of edges sfter removing outliers: "+graph.size());
+            System.out.println("# of edges after removing outliers: "+graph.size());
             graph.values().removeIf(v -> v<(0.02*maxWeight)); // removing edges with unwanted weights
             graph.values().removeIf(v -> v>(0.9*maxWeight));
 
@@ -620,8 +642,20 @@ public class EventDetection {
         }
         return tempMap;
     }
+    private static int getNumOfLines(ArrayList<String> files, String pathTweets) throws IOException {
+        int lines = 0;
+        for (String file:files){
+            if (!file.contains(".DS_Store")){
+                LineNumberReader lineNumberReader = new LineNumberReader(new FileReader(file));
+                lineNumberReader.skip(Long.MAX_VALUE);
+                lines += lineNumberReader.getLineNumber();
+                lineNumberReader.close();
+            }
+        }
+        return lines;
+    }
     public static void main(String[] args) throws Exception {
-        String pathTweets = "Dataset/2016-06-24-all.txt"; // input tweets file
+        String pathTweets = "/Users/siamakabdi/Projects/IdeaProjects/Event_Detection_preprocessing/Dataset/"; // input tweets file
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String pathGraph = "preprocessing results/graph.txt"; // output graph file
