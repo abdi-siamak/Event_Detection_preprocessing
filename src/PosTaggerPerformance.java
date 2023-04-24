@@ -1,4 +1,6 @@
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -7,7 +9,7 @@ import opennlp.tools.postag.POSTaggerME;
 import opennlp.tools.tokenize.WhitespaceTokenizer;
 import java.util.Arrays;
 public class PosTaggerPerformance {
-    public static List<String> main(String sentence) throws Exception{
+    public static List<String> main(String sentence) throws IOException {
         List<String> POS_nouns = new ArrayList<String>();
         //Loading Parts of speech-maxent model
         InputStream inputStream = new FileInputStream("OpenNLP_models/en-pos-maxent.bin");
@@ -87,7 +89,6 @@ public class PosTaggerPerformance {
         }
         //System.out.println(sample.toString());
         //System.out.println("1" +POS_nouns);
-
         //Monitoring the performance of POS tagger
         //PerformanceMonitor perfMon = new PerformanceMonitor(System.err, "sent");
         //perfMon.start();
@@ -95,7 +96,5 @@ public class PosTaggerPerformance {
         //perfMon.stopAndPrintFinalResult();
         return POS_nouns;
     }
-    // Function to remove the element
-
     // Function to remove the element
 }

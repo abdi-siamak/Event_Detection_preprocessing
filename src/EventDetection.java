@@ -1,7 +1,10 @@
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.sun.deploy.util.StringUtils;
 import opennlp.tools.tokenize.WhitespaceTokenizer;
@@ -49,7 +52,7 @@ public class EventDetection {
     private interface myInterface {
         void building() throws Exception;
     }
-    public static void graphBuilding(String pathTweets, String pathStopwords,String pathLemmatizers, String pathFilteredOut) throws Exception {
+    public static void graphBuilding(String pathTweets, String pathStopwords,String pathLemmatizers, String pathFilteredOut, String month, Integer day, PrintWriter outputRunning) throws Exception {
         if (ST){
             BufferedReader reader = new BufferedReader(new FileReader(pathStopwords)); // loading the stopwords file
             String l = reader.readLine();
@@ -83,7 +86,7 @@ public class EventDetection {
         String[] folders = dir.list(); // list of folders
         ArrayList<String> files = new ArrayList<>(); // list of files within folders
         for (String folder:folders){
-            if (!folder.equals(".DS_Store")){
+            if (folder.startsWith("disc")){
                 File subDir = new File(pathTweets + "/" +folder);
                 for (String file : subDir.list()){
                     files.add(pathTweets + folder + "/" + file);
@@ -93,10 +96,11 @@ public class EventDetection {
         int lines;
         int iter = 0;
         float percentage;
-        lines = getNumOfLines(files, pathTweets); // getting the number of all tweets
+        lines = getNumOfLines(files); // getting the number of all tweets
         for (String file : files) {
-            if (!file.contains(".DS_Store")){
+            if (file.endsWith(".txt")){
                 System.out.println("Reading file: " + file);
+                //outputRunning.print("\n Reading file: " + file);
                 BufferedReader reader = new BufferedReader(new FileReader(file));
 ///////////////////////////////////////////////////////////////////////////////////
                 String line = reader.readLine();
@@ -208,28 +212,30 @@ public class EventDetection {
                     //long startTime = System.nanoTime();
                     if (percentage % 5 == 0) {
                         System.out.println("Building the graph: " + percentage + " %");
+                        outputRunning.print("\nBuilding the graph: " + percentage + " %");
                     }
                     iter = iter + 1;
                     line = reader.readLine(); // read next line
 ///////////////////////////////////////////////////////////////////////////////////////////////
-                    //String data = (String) jo.get("created_at");
-                    //WhitespaceTokenizer whitespaceTokenizer= WhitespaceTokenizer.INSTANCE;
-                    //String[] tokens = whitespaceTokenizer.tokenize(data);
-                    if (true){
-                        if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT){  // removing retweets
-                            //System.out.println("1 " + iter);
-                            i.building();
-                        }else if (jo.get("text") != null && jo.get("retweeted_status") != null && RT){
-                            removedRetweets++;
-                        }else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT){
-                            removedNonEnglishTweets++;
-                        }
+                    String createData = (String) jo.get("created_at");
+                    if (createData != null){
+                        String[] date = createData.split("\\s+");
+                        if (month.equals(date[1]) && day.equals(Integer.parseInt(date[2]))){ // filtering tweets based on their date
+                            if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT){  // removing retweets
+                                //System.out.println("1 " + iter);
+                                i.building();
+                            }else if (jo.get("text") != null && jo.get("retweeted_status") != null && RT){
+                                removedRetweets++;
+                            }else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT){
+                                removedNonEnglishTweets++;
+                            }
 
-                        if (jo.get("text") != null && jo.get("lang").equals("en") && !RT){ // including retweets
-                            //System.out.println("2 " + iter);
-                            i.building();
-                        } else if (jo.get("text") != null && !jo.get("lang").equals("en") && !RT) {
-                            removedNonEnglishTweets++;
+                            if (jo.get("text") != null && jo.get("lang").equals("en") && !RT){ // including retweets
+                                //System.out.println("2 " + iter);
+                                i.building();
+                            } else if (jo.get("text") != null && !jo.get("lang").equals("en") && !RT) {
+                                removedNonEnglishTweets++;
+                            }
                         }
                     }
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -239,7 +245,7 @@ public class EventDetection {
         //System.out.println(dictionaryList);
         //System.out.println(graph);
         //System.out.println(maxWeight);
-        System.out.println("\n Information of removed words after preprocessing step: \n");
+        System.out.println("\n\n Information of removed words after preprocessing step: \n");
         System.out.println("# of removed retweets: " + removedRetweets);
         System.out.println("# of removed non-English tweets: " + removedNonEnglishTweets);
         System.out.println("# of removed mentions: " + removedMentions);
@@ -247,13 +253,27 @@ public class EventDetection {
         System.out.println("# of removed stopwords: " + removedStopwords);
         System.out.println("# of removed words with unwanted length: " + removedUnwantedLength);
         System.out.println("# of filtered-out words: " + removedFilteredOutWords + "\n");
+        outputRunning.print("\n\n Information of removed words after preprocessing step: \n");
+        outputRunning.print("\n# of removed retweets: " + removedRetweets);
+        outputRunning.print("\n# of removed non-English tweets: " + removedNonEnglishTweets);
+        outputRunning.print("\n# of removed mentions: " + removedMentions);
+        outputRunning.print("\n# of removed Hashtags: " + removedHashtags);
+        outputRunning.print("\n# of removed stopwords: " + removedStopwords);
+        outputRunning.print("\n# of removed words with unwanted length: " + removedUnwantedLength);
+        outputRunning.print("\n# of filtered-out words: " + removedFilteredOutWords + "\n");
     }
-    public static void graphWriting(String pathGraph) throws IOException {
-        FileWriter fw = new FileWriter(pathGraph); // building the graph file
+    public static void graphWriting(String pathGraph, String month, Integer day, PrintWriter outputRunning) throws IOException {
+        File theDir = new File(pathGraph + month+"_"+day);
+        if (!theDir.exists()){
+            theDir.mkdirs();
+        }
+        FileWriter fw = new FileWriter(pathGraph + month+"_"+day + "/graph.txt"); // building the graph file
         System.out.println("Writing the graph file...");
+        outputRunning.print("\nWriting the graph file...");
         ////////////////////////////////////// finding and removing outliers and unwanted weights
         if (Pru){ // pruning the graph
             System.out.println("\n Information of the graph after pruning step: \n");
+            outputRunning.print("\n Information of the graph after pruning step: \n");
             HashMap<Integer, Integer> weights = new HashMap<>();
             for(int g :graph.values()){ // obtaining a list of weights
                 if(!weights.containsKey(g)){
@@ -268,6 +288,9 @@ public class EventDetection {
             System.out.println("max weight before removing outliers: "+maxWeight);
             System.out.println("# of nodes before removing outliers: "+getNumOfNodes(graph));
             System.out.println("# of edges before removing outliers: "+graph.size());
+            outputRunning.print("\nmax weight before removing outliers: "+maxWeight);
+            outputRunning.print("\n# of nodes before removing outliers: "+getNumOfNodes(graph));
+            outputRunning.print("\n# of edges before removing outliers: "+graph.size());
             graph.values().removeIf(v -> v<(array[0] - 3*array[1])); // removing edges with unwanted weights
             graph.values().removeIf(v -> v>(array[0] + 3*array[1]));
 
@@ -275,6 +298,10 @@ public class EventDetection {
             System.out.println("max weight after removing outliers: "+maxWeight);
             System.out.println("# of nodes after removing outliers: "+getNumOfNodes(graph));
             System.out.println("# of edges after removing outliers: "+graph.size());
+            outputRunning.print("\nmax weight after removing outliers: "+maxWeight);
+            outputRunning.print("\n# of nodes after removing outliers: "+getNumOfNodes(graph));
+            outputRunning.print("\n# of edges after removing outliers: "+graph.size());
+
             graph.values().removeIf(v -> v<(0.02*maxWeight)); // removing edges with unwanted weights
             graph.values().removeIf(v -> v>(0.9*maxWeight));
 
@@ -282,16 +309,25 @@ public class EventDetection {
             System.out.println("max weight after frequency filter: "+maxWeight);
             System.out.println("# of nodes after frequency filter: "+getNumOfNodes(graph));
             System.out.println("# of edges after frequency filter: "+graph.size());
+            outputRunning.print("\nmax weight after frequency filter: "+maxWeight);
+            outputRunning.print("\n# of nodes after frequency filter: "+getNumOfNodes(graph));
+            outputRunning.print("\n# of edges after frequency filter: "+graph.size());
 
             System.out.println("mue: "+array[0]);
+            outputRunning.print("\nmue: "+array[0]);
             //System.out.println("sum_d: "+sum_sd);
             System.out.println("sd: "+array[1] + "\n");
+            outputRunning.print("\nsd: "+array[1] + "\n");
         }else{
             System.out.println("\n Information of the graph: \n");
+            outputRunning.print("\n Information of the graph: \n");
             maxWeight = Collections.max(graph.values());
             System.out.println("max weight: "+maxWeight);
             System.out.println("# of nodes: "+getNumOfNodes(graph));
             System.out.println("# of edges: "+graph.size() + "\n");
+            outputRunning.print("\nmax weight: "+maxWeight);
+            outputRunning.print("\n# of nodes: "+getNumOfNodes(graph));
+            outputRunning.print("\n# of edges: "+graph.size() + "\n");
         }
         ////////////////////////////////////////////////////////////////////////////////////////////
         /*
@@ -333,8 +369,9 @@ public class EventDetection {
         });
         fw.close();
     }
-    public static void DicBuilding() {
+    public static void DicBuilding(PrintWriter outputRunning) {
         System.out.println("Writing the Dictionary file...");
+        outputRunning.print("\nWriting the Dictionary file...");
         graph.forEach((k,v) -> {
             if(!(DicInformation.containsKey(k.get(0)))){
                 List<Integer> list = new ArrayList<>();
@@ -383,13 +420,14 @@ public class EventDetection {
         //System.out.println("final # of total nodes: "+ DicInformation.size());
         //System.out.println("final # of total edges: "+ graph.size());
     }
-    public static void createExcel(String pathDicInfo, String pathHis) throws IOException {
+    public static void createExcel(String pathDicInfo, String pathHis, String month, Integer day, PrintWriter outputRunning) throws IOException {
         System.out.println("Writing the Excel files...");
-        File fileName = new File(pathDicInfo);
+        outputRunning.print("\nWriting the Excel files...");
+        File fileName = new File(pathDicInfo + month+"_"+day + "/Dictionary.xlsx");
         FileOutputStream file = new FileOutputStream(fileName);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Dictionary");
-        File f_2 = new File(pathHis);
+        File f_2 = new File(pathHis + month+"_"+day + "/Histogram.xlsx");
         FileOutputStream f = new FileOutputStream(f_2);
         XSSFWorkbook  workbook_2 = new XSSFWorkbook();
         XSSFSheet sheet_2 = workbook_2.createSheet("Histogram");
@@ -453,9 +491,10 @@ public class EventDetection {
         f.flush();
         f.close();
     }
-    public static void fileWriting (String pathHashtag, String pathMention) throws IOException {
+    public static void fileWriting (String pathHashtag, String pathMention, String month, Integer day, PrintWriter outputRunning) throws IOException {
         System.out.println("Writing the removed words...");
-        File e = new File(pathHashtag);
+        outputRunning.print("\nWriting the removed words...");
+        File e = new File(pathHashtag + month+"_"+day + "/Hashtags.xlsx");
         FileOutputStream e_2 = new FileOutputStream(e);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Hashtags");
@@ -473,7 +512,7 @@ public class EventDetection {
         workbook.write(e_2);
         e_2.flush();
         e_2.close();
-        FileWriter fileWriter = new FileWriter(pathMention);
+        FileWriter fileWriter = new FileWriter(pathMention + month+"_"+day + "/Mentions.txt");
         for (String str : mentions) {
             fileWriter.write(str + System.lineSeparator());
         }
@@ -642,10 +681,10 @@ public class EventDetection {
         }
         return tempMap;
     }
-    private static int getNumOfLines(ArrayList<String> files, String pathTweets) throws IOException {
+    private static int getNumOfLines(ArrayList<String> files) throws IOException {
         int lines = 0;
         for (String file:files){
-            if (!file.contains(".DS_Store")){
+            if (file.endsWith(".txt")){
                 LineNumberReader lineNumberReader = new LineNumberReader(new FileReader(file));
                 lineNumberReader.skip(Long.MAX_VALUE);
                 lines += lineNumberReader.getLineNumber();
@@ -655,15 +694,15 @@ public class EventDetection {
         return lines;
     }
     public static void main(String[] args) throws Exception {
-        String pathTweets = "/Users/siamakabdi/Projects/IdeaProjects/Event_Detection_preprocessing/Dataset/"; // input tweets file
+        String pathTweets = "/data/brexit/"; // input tweets file
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
-        String pathGraph = "preprocessing results/graph.txt"; // output graph file
-        String pathDicInfo = "preprocessing results/Dictionary.xlsx"; // output dictionary file
-        String pathHistogram = "preprocessing results/Histogram.xlsx"; // output histogram file
-        String pathHashtags = "preprocessing results/Hashtags.xlsx";
-        String pathMentions = "preprocessing results/Mentions.txt";
-        String pathFilteredOut = "filteredOutWords.txt";
+        String pathGraph = "preprocessing results/"; // output graph file
+        String pathDicInfo = "preprocessing results/"; // output dictionary file
+        String pathHistogram = "preprocessing results/"; // output histogram file
+        String pathHashtags = "preprocessing results/"; // output Hashtags file
+        String pathMentions = "preprocessing results/"; // output Mentions file
+        String pathFilteredOut = "filteredOutWords.txt"; // input filteredOut file
         /////////////////////////////// Options ///////////////////////////////////////////////////////////////
         RT = true; // remove retweets?
         ST = true; // remove stopwords?
@@ -673,14 +712,28 @@ public class EventDetection {
         FW = true; // remove words that don't represent a specific topic (filtered out words)
         MAP = true; // mapping the graph to sequential order ids
         ///////////////////////////////////////////////////////////////////////////////////////////////////////
-        long startTime = System.currentTimeMillis();
-        graphBuilding(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut); // building the graph + preprocessing
-        graphWriting(pathGraph); // pruning-removing edges with unwanted weights
-        DicBuilding();
-        createExcel(pathDicInfo, pathHistogram);
-        if (KR){fileWriting(pathHashtags, pathMentions);} // writing removed words, separately
-        long endTime = System.currentTimeMillis();
-        long totalTime = endTime - startTime;
-        System.out.println("The total time of processing: " + totalTime/60000 + "(min)");
+        ArrayList<String> months = new ArrayList<>(Arrays.asList("Feb")); // months to be run
+        //////////////////////////////////////////////////////////////////////////////////////////////////
+        for (String month:months){
+            for (Integer day=20; day<=20; day++){ // days (from x to n) to be run
+                PrintWriter outputRunning = new PrintWriter("Running Informations/" + month + " " +day);
+                System.out.println("Month "+month + "   /   Day " + day);
+                outputRunning.print("Month "+month + "   /   Day " + day);
+                long startTime = System.currentTimeMillis();
+                graphBuilding(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut, month, day, outputRunning); // building the graph + preprocessing
+                if (!(graph.size() ==0)){
+                    graphWriting(pathGraph, month, day, outputRunning); // pruning-removing edges with unwanted weights
+                    DicBuilding(outputRunning);
+                    createExcel(pathDicInfo, pathHistogram, month, day, outputRunning);
+                    if (KR){fileWriting(pathHashtags, pathMentions, month, day, outputRunning);} // writing removed words, separately
+                    long endTime = System.currentTimeMillis();
+                    long totalTime = endTime - startTime;
+                    System.out.println("The total time of processing: " + totalTime/60000 + "(min)");
+                    outputRunning.print("\nThe total time of processing: " + totalTime/60000 + "(min)");
+                }
+                outputRunning.close();
+            }
+        }
+        //////////////////////////////////////////////////////////////////////////////////////////////////
     }
 }
