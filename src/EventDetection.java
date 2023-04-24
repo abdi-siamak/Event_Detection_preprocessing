@@ -14,6 +14,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.json.JSONException;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.*;
 
@@ -106,7 +107,11 @@ public class EventDetection {
                 String line = reader.readLine();
                 ///////////////////////////////////////////////////
                 while (line != null) {
-                    //System.out.println(line);
+                    try {
+                        Object obj = new JSONParser().parse(line);
+                    }catch (ParseException e){
+                        break;
+                    }
                     Object obj = new JSONParser().parse(line);
                     // typecasting obj to JSONObject
                     JSONObject jo = (JSONObject) obj;
@@ -694,7 +699,7 @@ public class EventDetection {
         return lines;
     }
     public static void main(String[] args) throws Exception {
-        String pathTweets = "/data/brexit/"; // input tweets file
+        String pathTweets = "data/brexit/"; // input tweets file
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String pathGraph = "preprocessing results/"; // output graph file
