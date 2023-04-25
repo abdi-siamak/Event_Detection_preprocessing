@@ -107,12 +107,12 @@ public class EventDetection {
                 String line = reader.readLine();
                 ///////////////////////////////////////////////////
                 while (line != null) {
+                    Object obj;
                     try {
-                        Object obj = new JSONParser().parse(line);
-                    }catch (ParseException e){
+                        obj = new JSONParser().parse(line);
+                    } catch (ParseException e) {
                         break;
                     }
-                    Object obj = new JSONParser().parse(line);
                     // typecasting obj to JSONObject
                     JSONObject jo = (JSONObject) obj;
                     ////////////////////////////////////// Preprocessing
@@ -121,30 +121,30 @@ public class EventDetection {
                         public void building() throws Exception {
                             String tweet = (String) jo.get("text"); // getting tweets
                             String[] tokens;
-                            if (POS){ // applying part of speech method
+                            if (POS) { // applying part of speech method
                                 tweet = tweet.replaceAll("http\\p{L}+", "")
                                         .replaceAll("[^a-zA-Z'@# \\s]+", "")
                                         .toLowerCase()
-                                        .replaceAll("\\b[tT][cC][oO]\\w*\\b","");
+                                        .replaceAll("\\b[tT][cC][oO]\\w*\\b", "");
                                 //tokens = PosTaggerPerformance.main(tweet).toArray(String[]::new);
                                 List<String> tokenList = PosTaggerPerformance.main(tweet);
                                 tokens = tokenList.toArray(new String[tokenList.size()]);
-                            }else{
+                            } else {
                                 tokens = tweet.replaceAll("http\\p{L}+", "")
                                         .replaceAll("[^a-zA-Z@# ]", "")
                                         .toLowerCase()
-                                        .replaceAll("\\b[tT][cC][oO]\\w*\\b","")
+                                        .replaceAll("\\b[tT][cC][oO]\\w*\\b", "")
                                         .split("\\s+"); // tokenizing and preprocessing
-                                for(String x:tokens){
-                                    if (x.startsWith("@") && x.length()>1){
-                                        if(!findMatch(mentions, x) && KR){
+                                for (String x : tokens) {
+                                    if (x.startsWith("@") && x.length() > 1) {
+                                        if (!findMatch(mentions, x) && KR) {
                                             mentions.add(x);
                                         }
                                         List<String> List = new ArrayList<>(Arrays.asList(tokens));
                                         List.remove(x);
                                         tokens = List.toArray(new String[0]);
                                         removedMentions++;
-                                    }else if(x.startsWith("#") && x.length()>1) {
+                                    } else if (x.startsWith("#") && x.length() > 1) {
                                         if (!hashtags.containsKey(x) && KR) {
                                             hashtags.put(x, 1);
                                         } else if (hashtags.containsKey(x) && KR) {
@@ -154,17 +154,17 @@ public class EventDetection {
                                         List.remove(x);
                                         tokens = List.toArray(new String[0]);
                                         removedHashtags++;
-                                    }else if(stopwords.containsKey(x)){
+                                    } else if (stopwords.containsKey(x)) {
                                         List<String> List = new ArrayList<>(Arrays.asList(tokens));
                                         List.remove(x);
                                         tokens = List.toArray(new String[0]);
                                         removedStopwords++;
-                                    }else if((x.length()<4 || x.length()>21)){
+                                    } else if ((x.length() < 4 || x.length() > 21)) {
                                         List<String> List = new ArrayList<>(Arrays.asList(tokens));
                                         List.remove(x);
                                         tokens = List.toArray(new String[0]);
                                         removedUnwantedLength++;
-                                    }else if(filterOutWords.containsKey(x)){
+                                    } else if (filterOutWords.containsKey(x)) {
                                         List<String> List = new ArrayList<>(Arrays.asList(tokens));
                                         List.remove(x);
                                         tokens = List.toArray(new String[0]);
@@ -175,16 +175,16 @@ public class EventDetection {
                             Set<String> hSet = new HashSet<>();
                             for (String x : tokens) {
                                 hSet.add(x); // converting to a set
-                                if (!wordFrequency.containsKey(x)){ // creating frequency of terms
-                                    wordFrequency.put(x,  1);
-                                }else{
+                                if (!wordFrequency.containsKey(x)) { // creating frequency of terms
+                                    wordFrequency.put(x, 1);
+                                } else {
                                     int freq = wordFrequency.get(x);
                                     freq = freq + 1;
-                                    wordFrequency.put(x,  freq);
+                                    wordFrequency.put(x, freq);
                                 }
                                 if (!dictionaryList.containsKey(x)) { // adding to the dictionary
-                                    dictionaryList.put(x,  index);
-                                    index = index +1;
+                                    dictionaryList.put(x, index);
+                                    index = index + 1;
                                 }
                             }
                             //System.out.println("2 "+hSet);
@@ -223,19 +223,19 @@ public class EventDetection {
                     line = reader.readLine(); // read next line
 ///////////////////////////////////////////////////////////////////////////////////////////////
                     String createData = (String) jo.get("created_at");
-                    if (createData != null){
+                    if (createData != null) {
                         String[] date = createData.split("\\s+");
-                        if (month.equals(date[1]) && day.equals(Integer.parseInt(date[2]))){ // filtering tweets based on their date
-                            if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT){  // removing retweets
+                        if (month.equals(date[1]) && day.equals(Integer.parseInt(date[2]))) { // filtering tweets based on their date
+                            if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT) {  // removing retweets
                                 //System.out.println("1 " + iter);
                                 i.building();
-                            }else if (jo.get("text") != null && jo.get("retweeted_status") != null && RT){
+                            } else if (jo.get("text") != null && jo.get("retweeted_status") != null && RT) {
                                 removedRetweets++;
-                            }else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT){
+                            } else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT) {
                                 removedNonEnglishTweets++;
                             }
 
-                            if (jo.get("text") != null && jo.get("lang").equals("en") && !RT){ // including retweets
+                            if (jo.get("text") != null && jo.get("lang").equals("en") && !RT) { // including retweets
                                 //System.out.println("2 " + iter);
                                 i.building();
                             } else if (jo.get("text") != null && !jo.get("lang").equals("en") && !RT) {
@@ -278,7 +278,7 @@ public class EventDetection {
         ////////////////////////////////////// finding and removing outliers and unwanted weights
         if (Pru){ // pruning the graph
             System.out.println("\n Information of the graph after pruning step: \n");
-            outputRunning.print("\n Information of the graph after pruning step: \n");
+            outputRunning.print("\n\n Information of the graph after pruning step: \n");
             HashMap<Integer, Integer> weights = new HashMap<>();
             for(int g :graph.values()){ // obtaining a list of weights
                 if(!weights.containsKey(g)){
@@ -687,6 +687,7 @@ public class EventDetection {
         return tempMap;
     }
     private static int getNumOfLines(ArrayList<String> files) throws IOException {
+        System.out.println("Calculating the number of tweets...");
         int lines = 0;
         for (String file:files){
             if (file.endsWith(".txt")){
@@ -699,7 +700,7 @@ public class EventDetection {
         return lines;
     }
     public static void main(String[] args) throws Exception {
-        String pathTweets = "data/brexit/"; // input tweets file
+        String pathTweets = "/data/brexit/"; // input tweets file
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String pathGraph = "preprocessing results/"; // output graph file
@@ -720,8 +721,8 @@ public class EventDetection {
         ArrayList<String> months = new ArrayList<>(Arrays.asList("Feb")); // months to be run
         //////////////////////////////////////////////////////////////////////////////////////////////////
         for (String month:months){
-            for (Integer day=20; day<=20; day++){ // days (from x to n) to be run
-                PrintWriter outputRunning = new PrintWriter("Running Informations/" + month + " " +day);
+            for (Integer day=22; day<=31; day++){ // days (from x to n) to be run
+                PrintWriter outputRunning = new PrintWriter("Running Informations/" + month + " " +day +".txt");
                 System.out.println("Month "+month + "   /   Day " + day);
                 outputRunning.print("Month "+month + "   /   Day " + day);
                 long startTime = System.currentTimeMillis();
