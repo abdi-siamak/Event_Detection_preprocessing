@@ -50,10 +50,12 @@ public class EventDetection {
     public static int removedFilteredOutWords = 0;
     private static HashMap<String, String> frequentHashtags = new HashMap<>();
     private static HashMap<Integer, Integer> idMap = new HashMap<>();
+    private static int lines = 0;
     private interface myInterface {
         void building() throws Exception;
     }
-    public static void graphBuilding(String pathTweets, String pathStopwords,String pathLemmatizers, String pathFilteredOut, String month, Integer day, PrintWriter outputRunning) throws Exception {
+    private static ArrayList<String> loading (String pathTweets, String pathStopwords,String pathLemmatizers, String pathFilteredOut) throws IOException {
+        System.out.println("Loading ...");
         if (ST){
             BufferedReader reader = new BufferedReader(new FileReader(pathStopwords)); // loading the stopwords file
             String l = reader.readLine();
@@ -94,24 +96,27 @@ public class EventDetection {
                 }
             }
         }
-        int lines;
+        lines = getNumOfLines(files); // getting the number of all tweets
+        return files;
+    }
+    public static void graphBuilding(String month, Integer day, PrintWriter outputRunning, ArrayList<String> files) throws Exception {
         int iter = 0;
         float percentage;
-        lines = getNumOfLines(files); // getting the number of all tweets
         for (String file : files) {
             if (file.endsWith(".txt")){
-                System.out.println("Reading file: " + file);
+                //System.out.println("Reading file: " + file);
                 //outputRunning.print("\n Reading file: " + file);
                 BufferedReader reader = new BufferedReader(new FileReader(file));
 ///////////////////////////////////////////////////////////////////////////////////
-                String line = reader.readLine();
+                String line;
                 ///////////////////////////////////////////////////
-                while (line != null) {
+                while ((line = reader.readLine()) != null) {
                     Object obj;
                     try {
                         obj = new JSONParser().parse(line);
                     } catch (ParseException e) {
-                        break;
+                        iter = iter +1;
+                        continue;
                     }
                     // typecasting obj to JSONObject
                     JSONObject jo = (JSONObject) obj;
@@ -217,10 +222,9 @@ public class EventDetection {
                     //long startTime = System.nanoTime();
                     if (percentage % 5 == 0) {
                         System.out.println("Building the graph: " + percentage + " %");
-                        outputRunning.print("\nBuilding the graph: " + percentage + " %");
+                        //outputRunning.print("\nBuilding the graph: " + percentage + " %");
                     }
                     iter = iter + 1;
-                    line = reader.readLine(); // read next line
 ///////////////////////////////////////////////////////////////////////////////////////////////
                     String createData = (String) jo.get("created_at");
                     if (createData != null) {
@@ -703,11 +707,11 @@ public class EventDetection {
         String pathTweets = "/data/brexit/"; // input tweets file
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
-        String pathGraph = "preprocessing results/"; // output graph file
-        String pathDicInfo = "preprocessing results/"; // output dictionary file
-        String pathHistogram = "preprocessing results/"; // output histogram file
-        String pathHashtags = "preprocessing results/"; // output Hashtags file
-        String pathMentions = "preprocessing results/"; // output Mentions file
+        String pathGraph = "preprocessing_results/"; // output graph file
+        String pathDicInfo = "preprocessing_results/"; // output dictionary file
+        String pathHistogram = "preprocessing_results/"; // output histogram file
+        String pathHashtags = "preprocessing_results/"; // output Hashtags file
+        String pathMentions = "preprocessing_results/"; // output Mentions file
         String pathFilteredOut = "filteredOutWords.txt"; // input filteredOut file
         /////////////////////////////// Options ///////////////////////////////////////////////////////////////
         RT = true; // remove retweets?
@@ -720,13 +724,14 @@ public class EventDetection {
         ///////////////////////////////////////////////////////////////////////////////////////////////////////
         ArrayList<String> months = new ArrayList<>(Arrays.asList("Feb")); // months to be run
         //////////////////////////////////////////////////////////////////////////////////////////////////
+        ArrayList<String> files = loading(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut); // loading ...
         for (String month:months){
-            for (Integer day=22; day<=31; day++){ // days (from x to n) to be run
-                PrintWriter outputRunning = new PrintWriter("Running Informations/" + month + " " +day +".txt");
-                System.out.println("Month "+month + "   /   Day " + day);
-                outputRunning.print("Month "+month + "   /   Day " + day);
+            for (Integer day=25; day<=31; day++){ // days (from x to n) to be run
+                PrintWriter outputRunning = new PrintWriter("Running_information/" + month + "_" +day +".txt");
+                System.out.println("Month: "+month + "   /   Day: " + day);
+                outputRunning.print("Month: "+month + "   /   Day: " + day);
                 long startTime = System.currentTimeMillis();
-                graphBuilding(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut, month, day, outputRunning); // building the graph + preprocessing
+                graphBuilding(month, day, outputRunning, files); // building the graph + preprocessing
                 if (!(graph.size() ==0)){
                     graphWriting(pathGraph, month, day, outputRunning); // pruning-removing edges with unwanted weights
                     DicBuilding(outputRunning);
