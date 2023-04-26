@@ -619,23 +619,23 @@ public class EventDetection {
         return words;
     }
     public static HashMap ExcelToHashMap(String path) throws IOException{ // loading the frequent hashtags file, words that should be removed
-            FileInputStream file = new FileInputStream(path);
-            Workbook workbook = new XSSFWorkbook(file);
-            Sheet sheet = workbook.getSheetAt(0); // assuming data is in the first sheet
+        FileInputStream file = new FileInputStream(path);
+        Workbook workbook = new XSSFWorkbook(file);
+        Sheet sheet = workbook.getSheetAt(0); // assuming data is in the first sheet
 
-            for (Row row : sheet) {
-                Cell keyCell = row.getCell(0);
-                Cell valueCell = row.getCell(1);
-                String key = keyCell.getStringCellValue();
-                String value = valueCell.getStringCellValue();
-                if (value.equals("y")){
-                    frequentHashtags.put(key, value);
-                }
+        for (Row row : sheet) {
+            Cell keyCell = row.getCell(0);
+            Cell valueCell = row.getCell(1);
+            String key = keyCell.getStringCellValue();
+            String value = valueCell.getStringCellValue();
+            if (value.equals("y")){
+                frequentHashtags.put(key, value);
             }
-            workbook.close();
-            file.close();
-            // use the hashmap as needed
-            //System.out.println(dataMap);
+        }
+        workbook.close();
+        file.close();
+        // use the hashmap as needed
+        //System.out.println(dataMap);
         return frequentHashtags;
     }
     public static HashMap<Integer, Integer> getMapper (Map<List<Integer>, Integer> graph){
