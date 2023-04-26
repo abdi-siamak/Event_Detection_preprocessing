@@ -19,7 +19,7 @@ public class PosTaggerPerformance {
         WhitespaceTokenizer whitespaceTokenizer= WhitespaceTokenizer.INSTANCE;
 
         //Tokenizing the sentence
-        //String sentence = "Brexit was a very big shit topic!";
+        //String sentence = "Brexit was a very big topic!";
         String[] tokens = whitespaceTokenizer.tokenize(sentence);
         /*
         for (String x: tokens){
