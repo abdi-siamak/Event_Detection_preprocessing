@@ -100,10 +100,11 @@ public class EventDetection {
         return files;
     }
     public static void graphBuilding(String month, Integer day, PrintWriter outputRunning, ArrayList<String> files) throws Exception {
-        int iter = 0;
+        int iter = 1;
         float percentage;
         String line;
         Object obj;
+        System.out.println("Building the graph: " + "0 %");
         for (String file : files) {
             if (file.endsWith(".txt")){
                 //System.out.println("Reading file: " + file);
@@ -114,16 +115,17 @@ public class EventDetection {
                     try {
                         obj = new JSONParser().parse(line);
                     } catch (ParseException e) {
-                    ////////////////////////////////////////////////////////////////
+                        continue;
+                    } finally {
+                        ////////////////////////////////////////////////////////////////
                         percentage = (float) iter * 100 / lines;
                         //long startTime = System.nanoTime();
-                        if (percentage % 5 == 0) {
+                        if (percentage % 1 == 0) {
                             System.out.println("Building the graph: " + percentage + " %");
                             //outputRunning.print("\nBuilding the graph: " + percentage + " %");
                         }
                         iter = iter + 1;
-                    /////////////////////////////////////////////////////////////////
-                        continue;
+                        /////////////////////////////////////////////////////////////////
                     }
                     // typecasting obj to JSONObject
                     JSONObject jo = (JSONObject) obj;
@@ -224,15 +226,7 @@ public class EventDetection {
                             }
                         }
                     };
-///////////////////////////////////////////////////////////////////////////////////////////////
-                    percentage = (float) iter * 100 / lines;
-                    //long startTime = System.nanoTime();
-                    if (percentage % 5 == 0) {
-                        System.out.println("Building the graph: " + percentage + " %");
-                        //outputRunning.print("\nBuilding the graph: " + percentage + " %");
-                    }
-                    iter = iter + 1;
-///////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////
                     String createData = (String) jo.get("created_at");
                     if (createData != null) {
                         String[] date = createData.split("\\s+");
@@ -732,7 +726,7 @@ public class EventDetection {
         //////////////////////////////////////////////////////////////////////////////////////////////////
         ArrayList<String> files = loading(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut); // loading ...
         for (String month:months){
-            for (Integer day=27; day<=31; day++){ // days (from x to n) to be run
+            for (Integer day=20; day<=20; day++){ // days (from x to n) to be run
                 String pathRunningInformation = "Running_information/" + month + "_" +day +".txt";
                 File file = new File(pathRunningInformation);
                 if (!file.exists()){file.createNewFile();}
