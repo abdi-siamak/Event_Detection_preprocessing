@@ -102,20 +102,27 @@ public class EventDetection {
     public static void graphBuilding(String month, Integer day, PrintWriter outputRunning, ArrayList<String> files) throws Exception {
         int iter = 0;
         float percentage;
+        String line;
+        Object obj;
         for (String file : files) {
             if (file.endsWith(".txt")){
                 //System.out.println("Reading file: " + file);
                 //outputRunning.print("\n Reading file: " + file);
                 BufferedReader reader = new BufferedReader(new FileReader(file));
 ///////////////////////////////////////////////////////////////////////////////////
-                String line;
-                ///////////////////////////////////////////////////
                 while ((line = reader.readLine()) != null) {
-                    Object obj;
                     try {
                         obj = new JSONParser().parse(line);
                     } catch (ParseException e) {
-                        iter = iter +1;
+                    ////////////////////////////////////////////////////////////////
+                        percentage = (float) iter * 100 / lines;
+                        //long startTime = System.nanoTime();
+                        if (percentage % 5 == 0) {
+                            System.out.println("Building the graph: " + percentage + " %");
+                            //outputRunning.print("\nBuilding the graph: " + percentage + " %");
+                        }
+                        iter = iter + 1;
+                    /////////////////////////////////////////////////////////////////
                         continue;
                     }
                     // typecasting obj to JSONObject
@@ -238,7 +245,6 @@ public class EventDetection {
                             } else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT) {
                                 removedNonEnglishTweets++;
                             }
-
                             if (jo.get("text") != null && jo.get("lang").equals("en") && !RT) { // including retweets
                                 //System.out.println("2 " + iter);
                                 i.building();
@@ -726,8 +732,11 @@ public class EventDetection {
         //////////////////////////////////////////////////////////////////////////////////////////////////
         ArrayList<String> files = loading(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut); // loading ...
         for (String month:months){
-            for (Integer day=25; day<=31; day++){ // days (from x to n) to be run
-                PrintWriter outputRunning = new PrintWriter("Running_information/" + month + "_" +day +".txt");
+            for (Integer day=27; day<=31; day++){ // days (from x to n) to be run
+                String pathRunningInformation = "Running_information/" + month + "_" +day +".txt";
+                File file = new File(pathRunningInformation);
+                if (!file.exists()){file.createNewFile();}
+                PrintWriter outputRunning = new PrintWriter(pathRunningInformation);
                 System.out.println("Month: "+month + "   /   Day: " + day);
                 outputRunning.print("Month: "+month + "   /   Day: " + day);
                 long startTime = System.currentTimeMillis();
