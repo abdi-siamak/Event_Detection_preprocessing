@@ -96,7 +96,10 @@ public class EventDetection {
                 }
             }
         }
-        lines = getNumOfLines(files); // getting the number of all tweets
+        //lines = getNumOfLines(files); // getting the number of all tweets
+        lines = 50039712;
+        System.out.println("# of all tweets: "+lines);
+        lines = lines/6; // to estimate number of tweets for a month
         return files;
     }
     public static void graphBuilding(String month, Integer day, PrintWriter outputRunning, ArrayList<String> files) throws Exception {
@@ -118,7 +121,7 @@ public class EventDetection {
                         continue;
                     } finally {
                         ////////////////////////////////////////////////////////////////
-                        percentage = (float) iter * 100 / lines;
+                        percentage = (float) 100* iter / lines;
                         //long startTime = System.nanoTime();
                         if (percentage % 1 == 0) {
                             System.out.println("Building the graph: " + percentage + " %");
@@ -227,8 +230,8 @@ public class EventDetection {
                         }
                     };
 //////////////////////////////////////////////////////////////////////////////////////////////
-                    String createData = (String) jo.get("created_at");
-                    if (createData != null) {
+                    try{
+                        String createData = (String) jo.get("created_at");
                         String[] date = createData.split("\\s+");
                         if (month.equals(date[1]) && day.equals(Integer.parseInt(date[2]))) { // filtering tweets based on their date
                             if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT) {  // removing retweets
@@ -246,6 +249,8 @@ public class EventDetection {
                                 removedNonEnglishTweets++;
                             }
                         }
+                    }catch (NullPointerException e){
+                        continue;
                     }
 ///////////////////////////////////////////////////////////////////////////////////////////////
                 }
@@ -432,11 +437,11 @@ public class EventDetection {
     public static void createExcel(String pathDicInfo, String pathHis, String month, Integer day, PrintWriter outputRunning) throws IOException {
         System.out.println("Writing the Excel files...");
         outputRunning.print("\nWriting the Excel files...");
-        File fileName = new File(pathDicInfo + month+"_"+day + "/Dictionary.xlsx");
+        File fileName = new File(pathDicInfo + month+"_"+day + "/dictionary.xlsx");
         FileOutputStream file = new FileOutputStream(fileName);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Dictionary");
-        File f_2 = new File(pathHis + month+"_"+day + "/Histogram.xlsx");
+        File f_2 = new File(pathHis + month+"_"+day + "/histogram.xlsx");
         FileOutputStream f = new FileOutputStream(f_2);
         XSSFWorkbook  workbook_2 = new XSSFWorkbook();
         XSSFSheet sheet_2 = workbook_2.createSheet("Histogram");
@@ -722,11 +727,11 @@ public class EventDetection {
         FW = true; // remove words that don't represent a specific topic (filtered out words)
         MAP = true; // mapping the graph to sequential order ids
         ///////////////////////////////////////////////////////////////////////////////////////////////////////
-        ArrayList<String> months = new ArrayList<>(Arrays.asList("Feb")); // months to be run
+        ArrayList<String> months = new ArrayList<>(Arrays.asList("Mar")); // months to be run
         //////////////////////////////////////////////////////////////////////////////////////////////////
         ArrayList<String> files = loading(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut); // loading ...
         for (String month:months){
-            for (Integer day=20; day<=20; day++){ // days (from x to n) to be run
+            for (Integer day=16; day<=16; day++){ // days (from x to n) to be run
                 String pathRunningInformation = "Running_information/" + month + "_" +day +".txt";
                 File file = new File(pathRunningInformation);
                 if (!file.exists()){file.createNewFile();}
