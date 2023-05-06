@@ -1,0 +1,32 @@
+Month: Feb   /   Day: 20
+
+ Information of removed words after preprocessing step: 
+
+# of removed retweets: 229
+# of removed non-English tweets: 112
+# of removed mentions: 55
+# of removed Hashtags: 98
+# of removed stopwords: 896
+# of removed words with unwanted length: 119
+# of filtered-out words: 450
+
+Writing the graph file...
+
+ Information of the graph after pruning step: 
+
+max weight before removing outliers: 34
+# of nodes before removing outliers: 95
+# of edges before removing outliers: 161
+max weight after removing outliers: 34
+# of nodes after removing outliers: 95
+# of edges after removing outliers: 161
+max weight after frequency filter: 22
+# of nodes after frequency filter: 95
+# of edges after frequency filter: 160
+mue: 11.25
+sd: 9.937303457175895
+
+Writing the Dictionary file...
+Writing the Excel files...
+Writing the removed words...
+The total time of processing: 1(min)
