@@ -9,6 +9,12 @@ import opennlp.tools.postag.POSModel;
 import opennlp.tools.postag.POSTaggerME;
 import opennlp.tools.tokenize.WhitespaceTokenizer;
 import java.util.Arrays;
+/**
+ * File: EventDetection.java
+ * Description: Implements Preprocessing and Pruning Steps on Text Documents Like Tweets.
+ * Author: Siamak Abdi
+ * Date: April 30, 2024
+ */
 public class PosTaggerPerformance {
     public static List<String> main(final String sentence) throws IOException {
         List<String> POS_nouns = new ArrayList<String>();

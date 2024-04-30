@@ -10,7 +10,12 @@ import org.json.simple.JSONObject;
 import org.json.simple.parser.*;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
-
+/**
+ * File: EventDetection.java
+ * Description: Implements Preprocessing and Pruning Steps on Text Documents Like Tweets.
+ * Author: Siamak Abdi
+ * Date: April 30, 2024
+ */
 public class EventDetection {
     private static BiMap<String, Integer> dictionaryList = HashBiMap.create(); // dictionary-unique words (word -> index)
     private static Map<List<Integer>, Integer> graph = new HashMap<>(); // graph structure (edge -> weight) ([source node, destination node] -> number of occurrences)
@@ -673,7 +678,8 @@ public class EventDetection {
         return lines;
     }
     public static void main(String[] args) throws Exception {
-        String pathTweets = "data/brexit/"; // input tweets file
+        //String pathTweets = "data/brexit/"; // input tweets file-for local PC
+        String pathTweets = "/data2/sabdi/brexit/"; // input tweets file-for server
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String pathGraph = "preprocessing_results/"; // output graph file
@@ -690,9 +696,9 @@ public class EventDetection {
         KR = true; // record removed words?
         FW = true; // remove words that don't represent a specific topic (filtered-out words)
         MAP = true; // mapping the graph to sequential order ids to match with CHkS algorithm
-        String MONTH = "Feb";
-        int DAY_FROM = 20;
-        int DAY_TO = 20;
+        String MONTH = "May";
+        int DAY_FROM = 31;
+        int DAY_TO = 31;
         ///////////////////////////////////////////////////////////////////////////////////////////////////////
         ArrayList<String> months = new ArrayList<>(Arrays.asList(MONTH)); //*** months to be run
         //////////////////////////////////////////////////////////////////////////////////////////////////
