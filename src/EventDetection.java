@@ -51,6 +51,20 @@ public class EventDetection {
     private interface myInterface {
         void building() throws Exception;
     }
+    /**
+     * Loads data from the specified files and returns an ArrayList of strings.
+     * This method loads tweets from a file specified by {@code pathTweets}, stopwords
+     * from a file specified by {@code pathStopwords}, lemmatizers from a file specified
+     * by {@code pathLemmatizers}, and filtered-out words from a file specified by
+     * {@code pathFilteredOut}.
+     *
+     * @param pathTweets       The path to the file containing tweets data.
+     * @param pathStopwords    The path to the file containing stopwords data.
+     * @param pathLemmatizers  The path to the file containing lemmatizers data.
+     * @param pathFilteredOut  The path to the file containing filtered-out words data.
+     * @return                 An ArrayList of strings containing loaded data.
+     * @throws IOException    If an I/O error occurs while reading the files.
+     */
     private static ArrayList<String> loading (final String pathTweets, final String pathStopwords, final String pathLemmatizers, final String pathFilteredOut) throws IOException {
         System.out.println("Loading ...");
         if (ST){
@@ -96,6 +110,17 @@ public class EventDetection {
         lines = getNumOfLines(files); // getting the number of all tweets
         return files;
     }
+    /**
+     * Builds a graph based on the provided parameters.
+     * This method constructs a graph based on the specified month, day,
+     * and list of files.
+     *
+     * @param month          The month for which the graph is being built.
+     * @param day            The day for which the graph is being built.
+     * @param outputRunning  The PrintWriter object used for writing output during graph construction.
+     * @param files          An ArrayList of strings containing the paths to the files used for graph construction.
+     * @throws Exception     If an error occurs during graph construction.
+     */
     public static void graphBuilding(final String month, final Integer day, final PrintWriter outputRunning, final ArrayList<String> files) throws Exception {
         int iter = 1;
         float percentage;
@@ -259,6 +284,17 @@ public class EventDetection {
         outputRunning.print("\n# of removed words with unwanted length: " + removedUnwantedLength);
         outputRunning.print("\n# of filtered-out words: " + removedFilteredOutWords + "\n");
     }
+    /**
+     * Writes the graph to a file with additional preprocessing steps.
+     * This method writes the graph to a file located at {@code pathGraph + month + "_" + day + "/graph.txt"},
+     * performs pruning steps if {@code Pru} is true, and updates the graph and dictionary if {@code MAP} is true.
+     *
+     * @param pathGraph       The path where the graph file will be written.
+     * @param month           The month associated with the graph.
+     * @param day             The day associated with the graph.
+     * @param outputRunning   The PrintWriter object used for writing output during graph writing.
+     * @throws IOException    If an I/O error occurs while writing the graph file.
+     */
     public static void graphWriting(final String pathGraph, final String month, final Integer day, final PrintWriter outputRunning) throws IOException {
         File theDir = new File(pathGraph + month+"_"+day);
         if (!theDir.exists()){
@@ -347,6 +383,12 @@ public class EventDetection {
         });
         fw.close();
     }
+    /**
+     * Builds a dictionary containing information about nodes.
+     * This method constructs a dictionary containing information about nodes based on the graph.
+     *
+     * @param outputRunning  The PrintWriter object used for writing output during dictionary building.
+     */
     public static void DicBuilding(final PrintWriter outputRunning) { // building DicInformation
         System.out.println("Writing the Dictionary file...");
         outputRunning.print("\nWriting the Dictionary file...");
@@ -398,7 +440,18 @@ public class EventDetection {
         //System.out.println("final # of total nodes: "+ DicInformation.size());
         //System.out.println("final # of total edges: "+ graph.size());
     }
-    // create and write the Dictionary and Histogram Excel files from DicInformation and graph structures
+    /**
+     * Creates and writes Excel files containing dictionary and histogram data.
+     * This method creates and writes two Excel files: Dictionary.xlsx containing
+     * information about nodes, and Histogram.xlsx containing histogram data.
+     *
+     * @param pathDicInfo     The path where the Dictionary.xlsx file will be written.
+     * @param pathHis         The path where the Histogram.xlsx file will be written.
+     * @param month           The month associated with the data.
+     * @param day             The day associated with the data.
+     * @param outputRunning   The PrintWriter object used for writing output during Excel file creation.
+     * @throws IOException    If an I/O error occurs while writing the Excel files.
+     */
     public static void createAndWriteExcels(final String pathDicInfo, final String pathHis, final String month, final Integer day, final PrintWriter outputRunning) throws IOException {
         System.out.println("Writing the Excel files Dictionary.xlsx and Histogram.xlsx...");
         outputRunning.print("\nWriting the Excel files Dictionary.xlsx and Histogram.xlsx...");
@@ -471,6 +524,18 @@ public class EventDetection {
         file_2.flush();
         file_2.close();
     }
+    /**
+     * Writes data to files containing hashtags and mentions.
+     * This method writes data to two files: Hashtags.xlsx containing hashtag frequencies
+     * and Mentions.txt containing mentions.
+     *
+     * @param pathHashtag     The path where the Hashtags.xlsx file will be written.
+     * @param pathMention     The path where the Mentions.txt file will be written.
+     * @param month           The month associated with the data.
+     * @param day             The day associated with the data.
+     * @param outputRunning   The PrintWriter object used for writing output during file writing.
+     * @throws IOException    If an I/O error occurs while writing the files.
+     */
     public static void fileWriting (final String pathHashtag, final String pathMention, final String month, final Integer day, final PrintWriter outputRunning) throws IOException {
         System.out.println("Writing the file Hashtags.xlsx...");
         outputRunning.print("\nWriting the file Hashtags.xlsx...");
@@ -498,7 +563,15 @@ public class EventDetection {
         }
         fileWriter.close();
     }
-    public static List<Integer> getSorted (final List<String> array){ // sort elements of an arraylist based on their indexes
+    /**
+     * Sorts elements of an ArrayList based on their indexes.
+     * This method sorts elements of the provided ArrayList based on their indexes
+     * in the dictionaryList.
+     *
+     * @param array  The ArrayList of strings to be sorted.
+     * @return       A List of integers containing the sorted indexes.
+     */
+    public static List<Integer> getSorted (final List<String> array){
         ArrayList<Integer> indexList = new ArrayList<>();
         for (String w:array){
             indexList.add(dictionaryList.get(w));
@@ -506,7 +579,14 @@ public class EventDetection {
         Collections.sort(indexList);
         return indexList;
     }
-    public static List<String> getSorted2 (final String key) { // sort two words based on their indexes
+    /**
+     * Sorts two words based on their indexes in the dictionaryList.
+     * This method sorts two words based on their indexes in the dictionaryList.
+     *
+     * @param key  A string containing two words separated by space.
+     * @return     A List of strings containing the sorted indexes as strings.
+     */
+    public static List<String> getSorted2 (final String key) {
         //System.out.println("key: " + key);
         ArrayList<Integer> indexList = new ArrayList<>();
         StringTokenizer tokenizer = new StringTokenizer(key);
@@ -521,7 +601,15 @@ public class EventDetection {
         //System.out.println(strList);
         return strList;
     }
-    private static String getKey(final Map<String, Integer> map, final Integer value) { // finding a key (string) based on a value (integer)
+    /**
+     * Finds a key (string) based on a value (integer) in the map.
+     * This method finds a key (string) based on a value (integer) in the provided map.
+     *
+     * @param map    The map containing key-value pairs.
+     * @param value  The value whose corresponding key is to be found.
+     * @return       The key (string) associated with the given value, or null if not found.
+     */
+    private static String getKey(final Map<String, Integer> map, final Integer value) {
         return map
                 .entrySet()
                 .stream()
@@ -530,8 +618,15 @@ public class EventDetection {
                 .findFirst()
                 .map(Object::toString)
                 .orElse(null);
-
     }
+    /**
+     * Finds an element (string) in an ArrayList.
+     * This method finds an element (string) in the provided ArrayList.
+     *
+     * @param array  The ArrayList in which to search for the element.
+     * @param x      The element (string) to be found.
+     * @return       True if the element is found, false otherwise.
+     */
     public static Boolean findMatch (final List array, final String x){ // finding an element (string) in an arraylist
         Boolean k = false;
         for (Object s : array) {
@@ -542,6 +637,14 @@ public class EventDetection {
         }
         return k;
     }
+    /**
+     * Calculates the mean (mue) and standard deviation (sd) values.
+     * This method calculates the mean (mue) and standard deviation (sd) values
+     * for the given set of weights.
+     *
+     * @param weights  The set of weights for which to calculate the statistics.
+     * @return         An array of doubles containing the mean (mue) at index 0 and the standard deviation (sd) at index 1.
+     */
     public static double[] getMueSd (final Set<Integer> weights){ // calculating the mue and sd values
         double[] results = new double[2];
         double sum = 0;
@@ -557,6 +660,13 @@ public class EventDetection {
         results[1] = Math.sqrt(sum_sd/(weights.size() - 1)); // sd
         return results;
     }
+    /**
+     * Calculates the number of nodes in the graph.
+     * This method calculates the number of nodes in the provided graph.
+     *
+     * @param graph  The graph represented as a map of edges to weights.
+     * @return       The number of nodes in the graph.
+     */
     public static int getNumOfNodes (final Map<List<Integer>, Integer> graph) { // calculating the number of nodes in the graph
         Set<Integer> nodes = new HashSet<>();
         for (List<Integer> edge : graph.keySet()) {
@@ -611,6 +721,13 @@ public class EventDetection {
         return frequentHashtags;
     }
     */
+    /**
+     * Creates a mapping table for node IDs.
+     * This method creates a mapping table for node IDs based on the provided graph.
+     *
+     * @param graph  The graph represented as a map of edges to weights.
+     * @return       A HashMap containing the mapping of old node IDs to new node IDs.
+     */
     public static HashMap<Integer, Integer> getMapper (final Map<List<Integer>, Integer> graph){
         HashMap<Integer, Integer> mapping = new HashMap<>(); // creating a mapping table
         int count = 0; // mapping the nodes starting from zero
@@ -628,6 +745,15 @@ public class EventDetection {
         }
         return mapping;
     }
+    /**
+     * Updates the dictionary based on the node ID mapping.
+     * This method updates the dictionary by removing terms that were removed from the graph
+     * and updating the node IDs according to the provided mapping.
+     *
+     * @param dictionary  The original dictionary mapping terms to node IDs.
+     * @param mapping     The mapping of old node IDs to new node IDs.
+     * @return            The updated dictionary mapping terms to node IDs.
+     */
     public static BiMap<String, Integer> updateDictionary(BiMap<String, Integer> dictionary, final HashMap<Integer, Integer> mapping){
         // updating the dictionary by removing terms that were removed from the graph
         Iterator<Map.Entry<String, Integer>> iterator = dictionary.entrySet().iterator();
@@ -649,6 +775,14 @@ public class EventDetection {
         dictionary = null;
         return updatedDictionary;
     }
+    /**
+     * Updates the graph based on the node ID mapping.
+     * This method updates the graph by updating the node IDs according to the provided mapping.
+     *
+     * @param graph    The original graph represented as a map of edges to weights.
+     * @param mapping  The mapping of old node IDs to new node IDs.
+     * @return         The updated graph represented as a map of edges to weights.
+     */
     public static Map<List<Integer>, Integer>  updateGraph (final Map<List<Integer>, Integer> graph, final HashMap<Integer, Integer> mapping){
         Map<List<Integer>, Integer> tempMap = new HashMap<>();
         // Update node IDs in graph hashmap
@@ -664,6 +798,13 @@ public class EventDetection {
         }
         return tempMap;
     }
+    /**
+     * Calculates the number of lines in the specified text files.
+     *
+     * @param files  The ArrayList containing the paths of the text files.
+     * @return       The total number of lines in the text files.
+     * @throws IOException  If an I/O error occurs while reading the files.
+     */
     private static int getNumOfLines(final ArrayList<String> files) throws IOException {
         System.out.println("Calculating the number of tweets...");
         int lines = 0;
@@ -678,8 +819,8 @@ public class EventDetection {
         return lines;
     }
     public static void main(String[] args) throws Exception {
-        //String pathTweets = "data/brexit/"; // input tweets file-for local PC
-        String pathTweets = "/data2/sabdi/brexit/"; // input tweets file-for server
+        //String pathTweets = "data/brexit/"; // input tweets files-for local PC
+        String pathTweets = "/data2/sabdi/brexit/"; // input tweets files-for server
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String pathGraph = "preprocessing_results/"; // output graph file
