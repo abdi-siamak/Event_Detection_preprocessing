@@ -1,66 +1,58 @@
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import com.sun.deploy.util.StringUtils;
-import opennlp.tools.tokenize.WhitespaceTokenizer;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.json.JSONException;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.*;
-
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 
 public class EventDetection {
-    private static Map<String,Integer> dictionaryList = new HashMap<>(); // dictionary-unique words
-    private static Map<List<Integer>, Integer> graph = new HashMap<>(); // graph structure
-    private static Map<Integer, List<Integer>> DicInformation = new HashMap<>(); // Dictionary Excel file
-    private static Map<Integer, Integer> histogram = new HashMap<>(); // histogram of weights
+    private static BiMap<String, Integer> dictionaryList = HashBiMap.create(); // dictionary-unique words (word -> index)
+    private static Map<List<Integer>, Integer> graph = new HashMap<>(); // graph structure (edge -> weight) ([source node, destination node] -> number of occurrences)
+    private static Map<Integer, List<Integer>> DicInformation = new HashMap<>(); // Dictionary Excel file (node -> [number of edges, sum of weights, max weight])
+    private static Map<Integer, Integer> histogram = new HashMap<>(); // histogram of weights (weight -> number of occurrences)
     private static final DecimalFormat df = new DecimalFormat("0.00");
     private static Integer maxWeight = 0;
     private static Boolean RT; // switch for retweets
-    private static Boolean ST; // switch for stopwords
+    public static Boolean ST; // switch for stopwords
     private static Boolean POS; // switch for activating POS
     private static Boolean Pru; //switch for activating pruning methods
     public static Boolean KR; // switch for saving removed words
-    private static Boolean FW; // switch for removing words that don't represent a specific topic
-    private static boolean MAP; // switch for mapping the graph to sequential order ids
-    private static int index = 0; // index of dictionary
-    public static Map<String, String> stopwords = new HashMap<>();
-    public static Map<String, String> lemmatizerWords = new HashMap<>();
-    public static Map<String, String> filterOutWords = new HashMap<>();
-    public static Map<String, Integer> hashtags = new HashMap<>(); // for keeping removed hashtags
-    public static List<String> mentions = new ArrayList<>(); // for keeping removed mentions
-    private static Map<String, Integer> wordFrequency = new HashMap<>();
-    public static int removedUnwantedLength = 0;
-    public static int removedStopwords = 0;
-    private static int removedRetweets = 0;
-    public static int removedHashtags = 0;
-    public static int removedMentions = 0;
-    private static int removedNonEnglishTweets = 0;
-    public static int removedNon_Nouns = 0;
-    public static int removedFilteredOutWords = 0;
-    private static HashMap<String, String> frequentHashtags = new HashMap<>();
-    private static HashMap<Integer, Integer> idMap = new HashMap<>();
-    private static int lines = 0;
+    public static Boolean FW; // switch for removing words that don't represent a specific topic
+    private static boolean MAP; // switch for mapping the graph to sequential order ids (to correspond with CHkS algorithm)
+    private static int index = 0; // index of words in the dictionary
+    public static Set<String> stopwords = new HashSet<>();
+    public static Map<String, String> lemmatizerWords = new HashMap<>(); // (word -> lemmatized word)
+    public static Set<String> filterOutWords = new HashSet<>();
+    public static Map<String, Integer> hashtags = new HashMap<>(); // for keeping removed hashtags (hashtag -> number of occurrences)
+    public static Set<String> mentions = new HashSet<>(); // for keeping removed mentions
+    private static Map<String, Integer> wordFrequency = new HashMap<>(); //(word -> number of occurrences)
+    public static int removedUnwantedLength = 0; // counter for removed words with unwanted length
+    public static int removedStopwords = 0; // counter for removed stopwords
+    private static int removedRetweets = 0; // counter for removed retweets
+    public static int removedHashtags = 0; // counter for removed hashtags
+    public static int removedMentions = 0; // counter for removed mentions
+    private static int removedNonEnglishTweets = 0; // counter for removed non-English tweets
+    public static int removedNon_Nouns = 0; // counter for removed non-nouns
+    public static int removedFilteredOutWords = 0; // counter for removed filtered out words
+    //private static HashMap<String, String> frequentHashtags = new HashMap<>(); //
+    private static HashMap<Integer, Integer> idMap = new HashMap<>(); // (old id -> new id)
+    private static int lines = 0; // counter for number of all tweets
     private interface myInterface {
         void building() throws Exception;
     }
-    private static ArrayList<String> loading (String pathTweets, String pathStopwords,String pathLemmatizers, String pathFilteredOut) throws IOException {
+    private static ArrayList<String> loading (final String pathTweets, final String pathStopwords, final String pathLemmatizers, final String pathFilteredOut) throws IOException {
         System.out.println("Loading ...");
         if (ST){
             BufferedReader reader = new BufferedReader(new FileReader(pathStopwords)); // loading the stopwords file
             String l = reader.readLine();
             while (l != null) {
-                stopwords.put(l, null);
+                stopwords.add(l);
                 l = reader.readLine();
             }
             //System.out.println(stopwords);
@@ -79,12 +71,12 @@ public class EventDetection {
             BufferedReader reader = new BufferedReader(new FileReader(pathFilteredOut)); // loading the filter out words
             String w = reader.readLine();
             while (w != null) {
-                filterOutWords.put(w, null);
+                filterOutWords.add(w);
                 w = reader.readLine();
             }
             //System.out.println(filterOutWords);
         }
-//////////////////////////////////////////////////////////////////////////////////// loading tweets
+        //////////////////////////////////////////////////////////////////////////////////// loading tweets
         File dir = new File(pathTweets);
         String[] folders = dir.list(); // list of folders
         ArrayList<String> files = new ArrayList<>(); // list of files within folders
@@ -99,7 +91,7 @@ public class EventDetection {
         lines = getNumOfLines(files); // getting the number of all tweets
         return files;
     }
-    public static void graphBuilding(String month, Integer day, PrintWriter outputRunning, ArrayList<String> files) throws Exception {
+    public static void graphBuilding(final String month, final Integer day, final PrintWriter outputRunning, final ArrayList<String> files) throws Exception {
         int iter = 1;
         float percentage;
         String line;
@@ -110,7 +102,7 @@ public class EventDetection {
                 //System.out.println("Reading file: " + file);
                 //outputRunning.print("\n Reading file: " + file);
                 BufferedReader reader = new BufferedReader(new FileReader(file));
-///////////////////////////////////////////////////////////////////////////////////
+                ///////////////////////////////////////////////////////////////////////////////////
                 while ((line = reader.readLine()) != null) {
                     try {
                         obj = new JSONParser().parse(line);
@@ -129,99 +121,90 @@ public class EventDetection {
                     }
                     // typecasting obj to JSONObject
                     JSONObject jo = (JSONObject) obj;
-                    ////////////////////////////////////// Preprocessing
-                    myInterface i = new myInterface() {
-                        @Override
-                        public void building() throws Exception {
-                            String tweet = (String) jo.get("text"); // getting tweets
-                            String[] tokens;
-                            if (POS) { // applying part of speech method
-                                tweet = tweet.replaceAll("http\\p{L}+", "")
-                                        .replaceAll("[^a-zA-Z'@# \\s]+", "")
-                                        .toLowerCase()
-                                        .replaceAll("\\b[tT][cC][oO]\\w*\\b", "");
-                                //tokens = PosTaggerPerformance.main(tweet).toArray(String[]::new);
-                                List<String> tokenList = PosTaggerPerformance.main(tweet);
-                                tokens = tokenList.toArray(new String[tokenList.size()]);
+                    ////////////////////////////////////// Preprocessing steps
+                    myInterface i = () -> {
+                        String tweet = (String) jo.get("text"); // getting tweets
+                        ArrayList<String> tokens = null;
+                        if (POS) { // applying part of speech method
+                            tweet = tweet.replaceAll("http\\p{L}+", "") // removing links (string that starts with "http" followed by one or more letters from any language)
+                                    .replaceAll("[^a-zA-Z'@# \\s]+", "") //removing any sequence of characters that is not a letter: (both lowercase and uppercase), a single quote, "@" or "#", or whitespace.
+                                    .toLowerCase() // lowercasing words
+                                    .replaceAll("\\b[tT][cC][oO]\\w*\\b", ""); // removing any word that starts with "tco", "Tco", "tCo", or "TCo" (case-insensitive), followed by zero or more word characters.
+                            //tokens = PosTaggerPerformance.main(tweet).toArray(String[]::new);
+                            List<String> tokenList = PosTaggerPerformance.main(tweet); // applying POS (tokenizing)
+                            tokens = new ArrayList<>(tokenList); // tokenizing + [removing mentions, removing hashtags, removing stopwords, removing words with unwanted length, and removing from filter-out words]
+                        } else {
+                            tweet = tweet.replaceAll("http\\p{L}+", "")
+                                    .replaceAll("[^a-zA-Z@# \\s]+", "")
+                                    .toLowerCase()
+                                    .replaceAll("\\b[tT][cC][oO]\\w*\\b", "");
+                            String[] tokenArray = tweet.split("\\s+"); // Split the tweet by whitespace to get tokens (tokenizing)
+                            tokens.addAll(Arrays.asList(tokenArray)); // Add tokens to the tokens list
+
+                            Iterator<String> iterator = tokens.iterator();
+                            while (iterator.hasNext()) {
+                                String x = iterator.next();
+                                if (x.startsWith("@") && x.length() > 1) { // removing mentions
+                                    if (!mentions.contains(x)&& KR) {
+                                        mentions.add(x);
+                                    }
+                                    iterator.remove();
+                                    removedMentions++;
+                                } else if (x.startsWith("#") && x.length() > 1) { // removing hashtags
+                                    if (!hashtags.containsKey(x) && KR) {
+                                        hashtags.put(x, 1);
+                                    } else if (hashtags.containsKey(x) && KR) {
+                                        hashtags.put(x, hashtags.get(x) + 1);
+                                    }
+                                    iterator.remove();
+                                    removedHashtags++;
+                                } else if (stopwords.contains(x) && ST) { // removing stopwords
+                                    iterator.remove();
+                                    removedStopwords++;
+                                } else if ((x.length() < 4 || x.length() > 21)) { // removing words with unwanted length
+                                    iterator.remove();
+                                    removedUnwantedLength++;
+                                } else if (filterOutWords.contains(x) && FW) { // removing from filter-out words
+                                    iterator.remove();
+                                    removedFilteredOutWords++;
+                                }
+                            }
+                        }
+                        Set<String> hSet = new HashSet<>();
+                        for (String x : tokens) {
+                            hSet.add(x); // converting to a set to remove duplicates
+                            if (!wordFrequency.containsKey(x)) { // creating frequency of words or terms
+                                wordFrequency.put(x, 1);
                             } else {
-                                tokens = tweet.replaceAll("http\\p{L}+", "")
-                                        .replaceAll("[^a-zA-Z@# ]", "")
-                                        .toLowerCase()
-                                        .replaceAll("\\b[tT][cC][oO]\\w*\\b", "")
-                                        .split("\\s+"); // tokenizing and preprocessing
-                                for (String x : tokens) {
-                                    if (x.startsWith("@") && x.length() > 1) {
-                                        if (!findMatch(mentions, x) && KR) {
-                                            mentions.add(x);
-                                        }
-                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                        List.remove(x);
-                                        tokens = List.toArray(new String[0]);
-                                        removedMentions++;
-                                    } else if (x.startsWith("#") && x.length() > 1) {
-                                        if (!hashtags.containsKey(x) && KR) {
-                                            hashtags.put(x, 1);
-                                        } else if (hashtags.containsKey(x) && KR) {
-                                            hashtags.put(x, hashtags.get(x) + 1);
-                                        }
-                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                        List.remove(x);
-                                        tokens = List.toArray(new String[0]);
-                                        removedHashtags++;
-                                    } else if (stopwords.containsKey(x)) {
-                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                        List.remove(x);
-                                        tokens = List.toArray(new String[0]);
-                                        removedStopwords++;
-                                    } else if ((x.length() < 4 || x.length() > 21)) {
-                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                        List.remove(x);
-                                        tokens = List.toArray(new String[0]);
-                                        removedUnwantedLength++;
-                                    } else if (filterOutWords.containsKey(x)) {
-                                        List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                                        List.remove(x);
-                                        tokens = List.toArray(new String[0]);
-                                        removedFilteredOutWords++;
-                                    }
-                                }
+                                int freq = wordFrequency.get(x);
+                                freq = freq + 1;
+                                wordFrequency.put(x, freq);
                             }
-                            Set<String> hSet = new HashSet<>();
-                            for (String x : tokens) {
-                                hSet.add(x); // converting to a set
-                                if (!wordFrequency.containsKey(x)) { // creating frequency of terms
-                                    wordFrequency.put(x, 1);
-                                } else {
-                                    int freq = wordFrequency.get(x);
-                                    freq = freq + 1;
-                                    wordFrequency.put(x, freq);
-                                }
-                                if (!dictionaryList.containsKey(x)) { // adding to the dictionary
-                                    dictionaryList.put(x, index);
-                                    index = index + 1;
-                                }
+                            if (!dictionaryList.containsKey(x)) { // adding to the dictionary
+                                dictionaryList.put(x, index);
+                                index = index + 1;
                             }
-                            //System.out.println("2 "+hSet);
-                            //System.out.println(dictionaryList);
+                        }
+                        //System.out.println("2 "+hSet);
+                        //System.out.println(dictionaryList);
 ////////////////////////////////////////////////////////////////////////////////////////////////
-                            List<String> BOW = new ArrayList<>(hSet); // Bag Of Words
-                            List<Integer> BOI = new ArrayList<>(getSorted(BOW)); //sort the all words based on their indexes, Bag Of Indexes
-                            //System.out.println(BOI);
-                            for (int i = 0; i < BOI.size(); i++) {
-                                for (int j = i + 1; j < BOI.size(); j++) {
-                                    List<Integer> tempList = new ArrayList<>();
-                                    tempList.add(BOI.get(i));
-                                    tempList.add(BOI.get(j));
+                        List<String> BOW = new ArrayList<>(hSet); // Bag Of Words
+                        List<Integer> BOI = new ArrayList<>(getSorted(BOW)); //sort the all words based on their indexes, (Bag Of Indexes)
+                        //System.out.println(BOI);
+                        for (int i1 = 0; i1 < BOI.size(); i1++) {
+                            for (int j = i1 + 1; j < BOI.size(); j++) {
+                                List<Integer> tempKey = new ArrayList<>();
+                                tempKey.add(BOI.get(i1));
+                                tempKey.add(BOI.get(j));
+                                //System.out.println(tempList);
+                                if (graph.containsKey(tempKey)) {
                                     //System.out.println(tempList);
-                                    if (graph.containsKey(tempList)) {
-                                        //System.out.println(tempList);
-                                        int tmp = graph.get(tempList);
-                                        tmp = tmp + 1;
-                                        graph.put(tempList, tmp);
-                                    } else {
-                                        graph.put(tempList, 1);
-                                        //System.out.println(tempList);
-                                    }
+                                    int weight = graph.get(tempKey);
+                                    weight = weight + 1;
+                                    graph.put(tempKey, weight);
+                                } else {
+                                    graph.put(tempKey, 1);
+                                    //System.out.println(tempList);
                                 }
                             }
                         }
@@ -229,9 +212,9 @@ public class EventDetection {
 //////////////////////////////////////////////////////////////////////////////////////////////
                     String createData = (String) jo.get("created_at");
                     if (createData != null) {
-                        String[] date = createData.split("\\s+");
+                        String[] date = createData.split("\\s+"); // split a string based on whitespace characters
                         if (month.equals(date[1]) && day.equals(Integer.parseInt(date[2]))) { // filtering tweets based on their date
-                            if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT) {  // removing retweets
+                            if (jo.get("text") != null && jo.get("retweeted_status") == null && jo.get("lang").equals("en") && RT) {  // filtering-out retweets
                                 //System.out.println("1 " + iter);
                                 i.building();
                             } else if (jo.get("text") != null && jo.get("retweeted_status") != null && RT) {
@@ -239,7 +222,7 @@ public class EventDetection {
                             } else if (jo.get("text") != null && !jo.get("lang").equals("en") && RT) {
                                 removedNonEnglishTweets++;
                             }
-                            if (jo.get("text") != null && jo.get("lang").equals("en") && !RT) { // including retweets
+                            if (jo.get("text") != null && jo.get("lang").equals("en") && !RT) { // Continue with including retweets
                                 //System.out.println("2 " + iter);
                                 i.building();
                             } else if (jo.get("text") != null && !jo.get("lang").equals("en") && !RT) {
@@ -254,7 +237,7 @@ public class EventDetection {
         //System.out.println(dictionaryList);
         //System.out.println(graph);
         //System.out.println(maxWeight);
-        System.out.println("\n\n Information of removed words after preprocessing step: \n");
+        System.out.println("\n\n Information of removed words after preprocessing steps: \n");
         System.out.println("# of removed retweets: " + removedRetweets);
         System.out.println("# of removed non-English tweets: " + removedNonEnglishTweets);
         System.out.println("# of removed mentions: " + removedMentions);
@@ -262,7 +245,7 @@ public class EventDetection {
         System.out.println("# of removed stopwords: " + removedStopwords);
         System.out.println("# of removed words with unwanted length: " + removedUnwantedLength);
         System.out.println("# of filtered-out words: " + removedFilteredOutWords + "\n");
-        outputRunning.print("\n\n Information of removed words after preprocessing step: \n");
+        outputRunning.print("\n\n Information of removed words after preprocessing steps: \n");
         outputRunning.print("\n# of removed retweets: " + removedRetweets);
         outputRunning.print("\n# of removed non-English tweets: " + removedNonEnglishTweets);
         outputRunning.print("\n# of removed mentions: " + removedMentions);
@@ -271,7 +254,7 @@ public class EventDetection {
         outputRunning.print("\n# of removed words with unwanted length: " + removedUnwantedLength);
         outputRunning.print("\n# of filtered-out words: " + removedFilteredOutWords + "\n");
     }
-    public static void graphWriting(String pathGraph, String month, Integer day, PrintWriter outputRunning) throws IOException {
+    public static void graphWriting(final String pathGraph, final String month, final Integer day, final PrintWriter outputRunning) throws IOException {
         File theDir = new File(pathGraph + month+"_"+day);
         if (!theDir.exists()){
             theDir.mkdirs();
@@ -280,16 +263,16 @@ public class EventDetection {
         System.out.println("Writing the graph file...");
         outputRunning.print("\nWriting the graph file...");
         ////////////////////////////////////// finding and removing outliers and unwanted weights
-        if (Pru){ // pruning the graph
-            System.out.println("\n Information of the graph after pruning step: \n");
-            outputRunning.print("\n\n Information of the graph after pruning step: \n");
-            HashMap<Integer, Integer> weights = new HashMap<>();
+        if (Pru){ // PRUNING THE GRAPH (pruning steps-after building the graph)
+            System.out.println("\n Information of the graph after pruning steps: \n");
+            outputRunning.print("\n\n Information of the graph after pruning steps: \n");
+            Set<Integer> weights = new HashSet<>();
             for(int g :graph.values()){ // obtaining a list of weights
-                if(!weights.containsKey(g)){
-                    weights.put(g, null);
+                if(!weights.contains(g)){
+                    weights.add(g);
                 }
             }
-            double[] array = getMueSd (weights.keySet()); // getting mue, double[0] and sd, double[1]
+            double[] array = getMueSd (weights); // getting mue, double[0] and sd, double[1]
             //double sd = get_mue_sd(weights.keySet())[1];
             //System.out.println("sum_sd: " + sum_sd);
 
@@ -300,9 +283,10 @@ public class EventDetection {
             outputRunning.print("\nmax weight before removing outliers: "+maxWeight);
             outputRunning.print("\n# of nodes before removing outliers: "+getNumOfNodes(graph));
             outputRunning.print("\n# of edges before removing outliers: "+graph.size());
-            graph.values().removeIf(v -> v<(array[0] - 3*array[1])); // removing edges with unwanted weights
+            graph.values().removeIf(v -> v<(array[0] - 3*array[1])); // removing edges with unwanted weights (removing outliers)
             graph.values().removeIf(v -> v>(array[0] + 3*array[1]));
-
+            System.out.println("-------------------------------------");
+            outputRunning.print("\n-------------------------------------");
             maxWeight = Collections.max(graph.values());
             System.out.println("max weight after removing outliers: "+maxWeight);
             System.out.println("# of nodes after removing outliers: "+getNumOfNodes(graph));
@@ -310,10 +294,10 @@ public class EventDetection {
             outputRunning.print("\nmax weight after removing outliers: "+maxWeight);
             outputRunning.print("\n# of nodes after removing outliers: "+getNumOfNodes(graph));
             outputRunning.print("\n# of edges after removing outliers: "+graph.size());
-
-            graph.values().removeIf(v -> v<(0.02*maxWeight)); // removing edges with unwanted weights
+            graph.values().removeIf(v -> v<(0.02*maxWeight)); // removing edges with unwanted weights (frequency filter)
             graph.values().removeIf(v -> v>(0.9*maxWeight));
-
+            System.out.println("-------------------------------------");
+            outputRunning.print("\n-------------------------------------");
             maxWeight = Collections.max(graph.values());
             System.out.println("max weight after frequency filter: "+maxWeight);
             System.out.println("# of nodes after frequency filter: "+getNumOfNodes(graph));
@@ -338,26 +322,6 @@ public class EventDetection {
             outputRunning.print("\n# of nodes: "+getNumOfNodes(graph));
             outputRunning.print("\n# of edges: "+graph.size() + "\n");
         }
-        ////////////////////////////////////////////////////////////////////////////////////////////
-        /*
-        if (FW){ // filtered-out words
-            ArrayList<String> removewords = new ArrayList<>(); // words that should be removed from the graph
-            ArrayList<List<Integer>> removeKeys = new ArrayList<>();
-            removewords = loadFilterOutWords (pathFilteredOut);
-            for (Map.Entry<List<Integer>, Integer> entry : graph.entrySet()) {
-                if (removewords.contains(getKey(dictionaryList,entry.getKey().get(0)))||removewords.contains(getKey(dictionaryList,entry.getKey().get(1)))){
-                    removeKeys.add(entry.getKey());
-                }
-            }
-            for (List<Integer> key:removeKeys){
-                graph.remove(key);
-            }
-            System.out.println("max weight after frequent hashtags filter: "+ Collections.max(graph.values()));
-            System.out.println("# of nodes after frequent hashtags filter: "+getNumOfNodes(graph));
-            System.out.println("# of edges after frequent hashtags filter: "+graph.size() + "\n");
-        }
-        ///////////////////////////////////////////////////////////////////////////////////////////
-         */
         if (MAP){
             //System.out.println("1. " + dictionaryList);
             idMap = getMapper (graph); // getting a map table (mapping old ids to new ids)
@@ -378,11 +342,11 @@ public class EventDetection {
         });
         fw.close();
     }
-    public static void DicBuilding(PrintWriter outputRunning) {
+    public static void DicBuilding(final PrintWriter outputRunning) { // building DicInformation
         System.out.println("Writing the Dictionary file...");
         outputRunning.print("\nWriting the Dictionary file...");
         graph.forEach((k,v) -> {
-            if(!(DicInformation.containsKey(k.get(0)))){
+            if(!(DicInformation.containsKey(k.get(0)))){ // for source nodes
                 List<Integer> list = new ArrayList<>();
                 list.add(0,1); // # of edges
                 list.add(1,v); // Sum of weights
@@ -403,7 +367,7 @@ public class EventDetection {
                 list.set(2,tmp_2); // Max weight
                 DicInformation.put(k.get(0),list);
             }
-            if(!(DicInformation.containsKey(k.get(1)))){
+            if(!(DicInformation.containsKey(k.get(1)))){ // for destination nodes
                 List<Integer> list = new ArrayList<>();
                 list.add(0,1); // # of edges
                 list.add(1,v); // Sum of weights
@@ -429,15 +393,16 @@ public class EventDetection {
         //System.out.println("final # of total nodes: "+ DicInformation.size());
         //System.out.println("final # of total edges: "+ graph.size());
     }
-    public static void createExcel(String pathDicInfo, String pathHis, String month, Integer day, PrintWriter outputRunning) throws IOException {
-        System.out.println("Writing the Excel files...");
-        outputRunning.print("\nWriting the Excel files...");
-        File fileName = new File(pathDicInfo + month+"_"+day + "/Dictionary.xlsx");
-        FileOutputStream file = new FileOutputStream(fileName);
+    // create and write the Dictionary and Histogram Excel files from DicInformation and graph structures
+    public static void createAndWriteExcels(final String pathDicInfo, final String pathHis, final String month, final Integer day, final PrintWriter outputRunning) throws IOException {
+        System.out.println("Writing the Excel files Dictionary.xlsx and Histogram.xlsx...");
+        outputRunning.print("\nWriting the Excel files Dictionary.xlsx and Histogram.xlsx...");
+        File f_1 = new File(pathDicInfo + month+"_"+day + "/Dictionary.xlsx");
+        FileOutputStream file_1 = new FileOutputStream(f_1);
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Dictionary");
         File f_2 = new File(pathHis + month+"_"+day + "/Histogram.xlsx");
-        FileOutputStream f = new FileOutputStream(f_2);
+        FileOutputStream file_2 = new FileOutputStream(f_2);
         XSSFWorkbook  workbook_2 = new XSSFWorkbook();
         XSSFSheet sheet_2 = workbook_2.createSheet("Histogram");
         ////////////////////////////////////////////////////////////////////// writing the Info file
@@ -463,7 +428,8 @@ public class EventDetection {
             List<Integer> values = new ArrayList<>();
             values.addAll((Collection<? extends Integer>) entry.getValue());
             //System.out.println(values);
-            String term = getKey(dictionaryList, (Integer)entry.getKey());
+            String term = dictionaryList.inverse().get((Integer)entry.getKey());
+            //String term = getKey(dictionaryList, (Integer)entry.getKey());
             row.createCell(0).setCellValue((Integer)entry.getKey());
             row.createCell(1).setCellValue(term);
             row.createCell(2).setCellValue(values.get(0));
@@ -472,9 +438,9 @@ public class EventDetection {
             row.createCell(5).setCellValue(wordFrequency.get(term));
             row.createCell(6).setCellValue(values.get(2));
         };
-        workbook.write(file);
-        file.flush();
-        file.close();
+        workbook.write(file_1);
+        file_1.flush();
+        file_1.close();
         ////////////////////////////////////////////////////////////////////// writing the Histogram file
         Cell c_0 = r_2.createCell(0);
         Cell c_1 = r_2.createCell(1);
@@ -496,13 +462,13 @@ public class EventDetection {
             row_2.createCell(0).setCellValue((Integer) entry.getKey());
             row_2.createCell(1).setCellValue((Integer) entry.getValue());
         }
-        workbook_2.write(f);
-        f.flush();
-        f.close();
+        workbook_2.write(file_2);
+        file_2.flush();
+        file_2.close();
     }
-    public static void fileWriting (String pathHashtag, String pathMention, String month, Integer day, PrintWriter outputRunning) throws IOException {
-        System.out.println("Writing the removed words...");
-        outputRunning.print("\nWriting the removed words...");
+    public static void fileWriting (final String pathHashtag, final String pathMention, final String month, final Integer day, final PrintWriter outputRunning) throws IOException {
+        System.out.println("Writing the file Hashtags.xlsx...");
+        outputRunning.print("\nWriting the file Hashtags.xlsx...");
         File e = new File(pathHashtag + month+"_"+day + "/Hashtags.xlsx");
         FileOutputStream e_2 = new FileOutputStream(e);
         XSSFWorkbook workbook = new XSSFWorkbook();
@@ -527,7 +493,7 @@ public class EventDetection {
         }
         fileWriter.close();
     }
-    public static List<Integer> getSorted (List<String> array){ // sort elements of an arraylist based on their indexs
+    public static List<Integer> getSorted (final List<String> array){ // sort elements of an arraylist based on their indexes
         ArrayList<Integer> indexList = new ArrayList<>();
         for (String w:array){
             indexList.add(dictionaryList.get(w));
@@ -535,7 +501,7 @@ public class EventDetection {
         Collections.sort(indexList);
         return indexList;
     }
-    public static List<String> getSorted2 (String key) { // sort two words based on their indexes
+    public static List<String> getSorted2 (final String key) { // sort two words based on their indexes
         //System.out.println("key: " + key);
         ArrayList<Integer> indexList = new ArrayList<>();
         StringTokenizer tokenizer = new StringTokenizer(key);
@@ -550,7 +516,7 @@ public class EventDetection {
         //System.out.println(strList);
         return strList;
     }
-    private static String getKey(Map<String, Integer> map, Integer value) { // finding a key (string) based on a value (integer)
+    private static String getKey(final Map<String, Integer> map, final Integer value) { // finding a key (string) based on a value (integer)
         return map
                 .entrySet()
                 .stream()
@@ -561,7 +527,7 @@ public class EventDetection {
                 .orElse(null);
 
     }
-    public static Boolean findMatch (List array, String x){ // finding an element (string) in an arraylist
+    public static Boolean findMatch (final List array, final String x){ // finding an element (string) in an arraylist
         Boolean k = false;
         for (Object s : array) {
             if (x.equals(s.toString())) {
@@ -571,7 +537,7 @@ public class EventDetection {
         }
         return k;
     }
-    public static double[] getMueSd (Set<Integer> weights){ // calculating the mue and sd values
+    public static double[] getMueSd (final Set<Integer> weights){ // calculating the mue and sd values
         double[] results = new double[2];
         double sum = 0;
         for (Integer w: weights) {
@@ -586,7 +552,7 @@ public class EventDetection {
         results[1] = Math.sqrt(sum_sd/(weights.size() - 1)); // sd
         return results;
     }
-    public static int getNumOfNodes (Map<List<Integer>, Integer> graph) { // calculating the number of nodes in the graph
+    public static int getNumOfNodes (final Map<List<Integer>, Integer> graph) { // calculating the number of nodes in the graph
         Set<Integer> nodes = new HashSet<>();
         for (List<Integer> edge : graph.keySet()) {
             nodes.add(edge.get(0));
@@ -618,6 +584,7 @@ public class EventDetection {
         }
         return words;
     }
+    /*
     public static HashMap ExcelToHashMap(String path) throws IOException{ // loading the frequent hashtags file, words that should be removed
         FileInputStream file = new FileInputStream(path);
         Workbook workbook = new XSSFWorkbook(file);
@@ -638,7 +605,8 @@ public class EventDetection {
         //System.out.println(dataMap);
         return frequentHashtags;
     }
-    public static HashMap<Integer, Integer> getMapper (Map<List<Integer>, Integer> graph){
+    */
+    public static HashMap<Integer, Integer> getMapper (final Map<List<Integer>, Integer> graph){
         HashMap<Integer, Integer> mapping = new HashMap<>(); // creating a mapping table
         int count = 0; // mapping the nodes starting from zero
         // Loop through remaining nodes in graph hashmap to create the mapping table
@@ -655,27 +623,28 @@ public class EventDetection {
         }
         return mapping;
     }
-    public static Map<String, Integer> updateDictionary(Map<String, Integer> dic, HashMap<Integer, Integer> mapping){
+    public static BiMap<String, Integer> updateDictionary(BiMap<String, Integer> dictionary, final HashMap<Integer, Integer> mapping){
         // updating the dictionary by removing terms that were removed from the graph
-        ArrayList<String> removedKeys = new ArrayList<>();
-        for (Map.Entry<String, Integer> entry : dic.entrySet()) {
-            if (!mapping.containsKey(entry.getValue())){
-                removedKeys.add(entry.getKey()); // finding records that should be removed from the dictionary
+        Iterator<Map.Entry<String, Integer>> iterator = dictionary.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Integer> entry = iterator.next();
+            if (!mapping.containsKey(entry.getValue())) {
+                iterator.remove(); // Use the iterator's remove() method to safely remove the entry
             }
         }
-        for (String key:removedKeys){
-            dic.remove(key);
-        }
+
         // Update node IDs in dictionary hashmap
-        for (Map.Entry<String, Integer> entry : dic.entrySet()) {
+        BiMap<String, Integer> updatedDictionary = HashBiMap.create();
+        for (Map.Entry<String, Integer> entry : dictionary.entrySet()) {
             String key = entry.getKey();
-            int value = entry.getValue(); // getting the old id
-            int mappedValue = mapping.get(value); // getting the new id
-            dic.put(key, mappedValue); // update the entry
+            int oldValue = entry.getValue(); // getting the old id
+            int mappedValue = mapping.get(oldValue); // getting the new id
+            updatedDictionary.put(key, mappedValue); // update the entry
         }
-        return dic;
+        dictionary = null;
+        return updatedDictionary;
     }
-    public static Map<List<Integer>, Integer>  updateGraph (Map<List<Integer>, Integer> graph, HashMap<Integer, Integer> mapping){
+    public static Map<List<Integer>, Integer>  updateGraph (final Map<List<Integer>, Integer> graph, final HashMap<Integer, Integer> mapping){
         Map<List<Integer>, Integer> tempMap = new HashMap<>();
         // Update node IDs in graph hashmap
         for (Map.Entry<List<Integer>, Integer> entry : graph.entrySet()) {
@@ -690,7 +659,7 @@ public class EventDetection {
         }
         return tempMap;
     }
-    private static int getNumOfLines(ArrayList<String> files) throws IOException {
+    private static int getNumOfLines(final ArrayList<String> files) throws IOException {
         System.out.println("Calculating the number of tweets...");
         int lines = 0;
         for (String file:files){
@@ -704,7 +673,7 @@ public class EventDetection {
         return lines;
     }
     public static void main(String[] args) throws Exception {
-        String pathTweets = "/data/brexit/"; // input tweets file
+        String pathTweets = "data/brexit/"; // input tweets file
         String pathStopwords = "stopwords.txt"; // input stopwords file
         String pathLemmatizers = "opennlp-en-lemmatizer-dict-NNS.txt"; // input lemmatizer words file
         String pathGraph = "preprocessing_results/"; // output graph file
@@ -717,16 +686,19 @@ public class EventDetection {
         RT = true; // remove retweets?
         ST = true; // remove stopwords?
         POS = true; // use the part of speech method? (POS)
-        Pru = true; // remove unwanted weights? pruning-(1.removing outliers, 2.finding max weight, and 3.frequency filter)
-        KR = true; // save removed words?
-        FW = true; // remove words that don't represent a specific topic (filtered out words)
-        MAP = true; // mapping the graph to sequential order ids
+        Pru = true; // pruning steps-(1.removing outliers, 2.frequency filter)
+        KR = true; // record removed words?
+        FW = true; // remove words that don't represent a specific topic (filtered-out words)
+        MAP = true; // mapping the graph to sequential order ids to match with CHkS algorithm
+        String MONTH = "Feb";
+        int DAY_FROM = 20;
+        int DAY_TO = 20;
         ///////////////////////////////////////////////////////////////////////////////////////////////////////
-        ArrayList<String> months = new ArrayList<>(Arrays.asList("Feb")); // months to be run
+        ArrayList<String> months = new ArrayList<>(Arrays.asList(MONTH)); //*** months to be run
         //////////////////////////////////////////////////////////////////////////////////////////////////
         ArrayList<String> files = loading(pathTweets, pathStopwords, pathLemmatizers, pathFilteredOut); // loading ...
         for (String month:months){
-            for (Integer day=20; day<=20; day++){ // days (from x to n) to be run
+            for (Integer day=DAY_FROM; day<=DAY_TO; day++){ //*** days (from x to n) to be run
                 String pathRunningInformation = "Running_information/" + month + "_" +day +".txt";
                 File file = new File(pathRunningInformation);
                 if (!file.exists()){file.createNewFile();}
@@ -738,7 +710,7 @@ public class EventDetection {
                 if (!(graph.size() ==0)){
                     graphWriting(pathGraph, month, day, outputRunning); // pruning-removing edges with unwanted weights
                     DicBuilding(outputRunning);
-                    createExcel(pathDicInfo, pathHistogram, month, day, outputRunning);
+                    createAndWriteExcels(pathDicInfo, pathHistogram, month, day, outputRunning);
                     if (KR){fileWriting(pathHashtags, pathMentions, month, day, outputRunning);} // writing removed words, separately
                     long endTime = System.currentTimeMillis();
                     long totalTime = endTime - startTime;

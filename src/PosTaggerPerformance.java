@@ -3,13 +3,14 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import opennlp.tools.postag.POSModel;
 import opennlp.tools.postag.POSTaggerME;
 import opennlp.tools.tokenize.WhitespaceTokenizer;
 import java.util.Arrays;
 public class PosTaggerPerformance {
-    public static List<String> main(String sentence) throws IOException {
+    public static List<String> main(final String sentence) throws IOException {
         List<String> POS_nouns = new ArrayList<String>();
         //Loading Parts of speech-maxent model
         InputStream inputStream = new FileInputStream("OpenNLP_models/en-pos-maxent.bin");
@@ -19,21 +20,19 @@ public class PosTaggerPerformance {
         WhitespaceTokenizer whitespaceTokenizer= WhitespaceTokenizer.INSTANCE;
 
         //Tokenizing the sentence
-        //String sentence = "Brexit was a very big topic!";
-        String[] tokens = whitespaceTokenizer.tokenize(sentence);
-        /*
-        for (String x: tokens){
-            System.out.println("1" + x);
+        ArrayList<String> tokens = new ArrayList<>();
+        for (String token : whitespaceTokenizer.tokenize(sentence)) {
+            tokens.add(token);
         }
-         */
-        for(String x:tokens){
+
+        Iterator<String> iterator = tokens.iterator();
+        while (iterator.hasNext()) {
+            String x = iterator.next();
             if (x.startsWith("@") && x.length()>1){
-                if(!EventDetection.findMatch(EventDetection.mentions, x) && EventDetection.KR){
+                if(!EventDetection.mentions.contains(x) && EventDetection.KR){
                     EventDetection.mentions.add(x);
                 }
-                List<String> List = new ArrayList<>(Arrays.asList(tokens));
-                List.remove(x);
-                tokens = List.toArray(new String[0]);
+                iterator.remove();
                 EventDetection.removedMentions++;
             }else if(x.startsWith("#") && x.length()>1) {
                 if (!EventDetection.hashtags.containsKey(x) && EventDetection.KR) {
@@ -41,45 +40,39 @@ public class PosTaggerPerformance {
                 } else if (EventDetection.hashtags.containsKey(x) && EventDetection.KR) {
                     EventDetection.hashtags.put(x, EventDetection.hashtags.get(x) + 1);
                 }
-                List<String> List_2 = new ArrayList<>(Arrays.asList(tokens));
-                List_2.remove(x);
-                tokens = List_2.toArray(new String[0]);
+                iterator.remove();
                 EventDetection.removedHashtags++;
-            }else if(EventDetection.stopwords.containsKey(x)){
-                List<String> List_3 = new ArrayList<>(Arrays.asList(tokens));
-                List_3.remove(x);
-                tokens = List_3.toArray(new String[0]);
+            }else if(EventDetection.stopwords.contains(x) && EventDetection.ST){
+                iterator.remove();
                 EventDetection.removedStopwords++;
             }else if(x.length()<4 || x.length()>21){
-                List<String> List_4 = new ArrayList<>(Arrays.asList(tokens));
-                List_4.remove(x);
-                tokens = List_4.toArray(new String[0]);
+                iterator.remove();
                 EventDetection.removedUnwantedLength++;
             }
         }
-        /*
-        for (String x: tokens){
-            System.out.println("2" + x);
-        }
-         */
+
         //Instantiating POSTaggerME class
         POSTaggerME tagger = new POSTaggerME(model);
         //Generating tags
-        String[] tags = tagger.tag(tokens);
+        // Convert ArrayList<String> to String[]
+        String[] tokensArray = tokens.toArray(new String[tokens.size()]);
+        String[] tags = tagger.tag(tokensArray);
         //Instantiating POSSample class
         //POSSample sample = new POSSample(tokens, tags);
-        for(int i=0;i<tokens.length;i++){
+        for(int i=0;i<tokensArray.length;i++){ // applying POS
             //System.out.println(tokens[i]+"\t:\t"+tags[i]);
             if (tags[i].contains("NN")){
-                tokens[i] = tokens[i].replaceAll("[^a-zA-Z0-9\\s]+", "");
-                if(tags[i].equals("NNS") && EventDetection.lemmatizerWords.get(tokens[i]) != null){
-                    if (!EventDetection.filterOutWords.containsKey(EventDetection.lemmatizerWords.get(tokens[i]))){
-                        POS_nouns.add(EventDetection.lemmatizerWords.get(tokens[i]));
+                tokensArray[i] = tokensArray[i].replaceAll("[^a-zA-Z0-9\\s]+", "");
+                if(tags[i].equals("NNS") && EventDetection.lemmatizerWords.get(tokensArray[i]) != null){
+                    if (EventDetection.FW && !EventDetection.filterOutWords.contains(EventDetection.lemmatizerWords.get(tokensArray[i]))){
+                        POS_nouns.add(EventDetection.lemmatizerWords.get(tokensArray[i]));
+                    }else{
                         EventDetection.removedFilteredOutWords++;
                     }
                 }else {
-                    if (!EventDetection.filterOutWords.containsKey(tokens[i])){
-                        POS_nouns.add(tokens[i]);
+                    if (EventDetection.FW && !EventDetection.filterOutWords.contains(tokensArray[i])){
+                        POS_nouns.add(tokensArray[i]);
+                    }else{
                         EventDetection.removedFilteredOutWords++;
                     }
                 }
