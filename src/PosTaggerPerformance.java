@@ -28,13 +28,13 @@ public class PosTaggerPerformance {
         Iterator<String> iterator = tokens.iterator();
         while (iterator.hasNext()) {
             String x = iterator.next();
-            if (x.startsWith("@") && x.length()>1){
+            if (x.startsWith("@") && x.length()>1){ // 1. filtering out mentions
                 if(!EventDetection.mentions.contains(x) && EventDetection.KR){
                     EventDetection.mentions.add(x);
                 }
                 iterator.remove();
                 EventDetection.removedMentions++;
-            }else if(x.startsWith("#") && x.length()>1) {
+            }else if(x.startsWith("#") && x.length()>1) { // 2. filtering out hashtags
                 if (!EventDetection.hashtags.containsKey(x) && EventDetection.KR) {
                     EventDetection.hashtags.put(x, 1);
                 } else if (EventDetection.hashtags.containsKey(x) && EventDetection.KR) {
@@ -42,10 +42,10 @@ public class PosTaggerPerformance {
                 }
                 iterator.remove();
                 EventDetection.removedHashtags++;
-            }else if(EventDetection.stopwords.contains(x) && EventDetection.ST){
+            }else if(EventDetection.stopwords.contains(x) && EventDetection.ST){ // 3. filtering out stopwords ****
                 iterator.remove();
                 EventDetection.removedStopwords++;
-            }else if(x.length()<4 || x.length()>21){
+            }else if(x.length()<4 || x.length()>21){ // 4. filtering out words with unwanted length
                 iterator.remove();
                 EventDetection.removedUnwantedLength++;
             }
@@ -59,24 +59,24 @@ public class PosTaggerPerformance {
         String[] tags = tagger.tag(tokensArray);
         //Instantiating POSSample class
         //POSSample sample = new POSSample(tokens, tags);
-        for(int i=0;i<tokensArray.length;i++){ // applying POS
+        for(int i=0;i<tokensArray.length;i++){ // 5. applying POS
             //System.out.println(tokens[i]+"\t:\t"+tags[i]);
-            if (tags[i].contains("NN")){
+            if (tags[i].equals("NN") || tags[i].equals("NNS")){
                 tokensArray[i] = tokensArray[i].replaceAll("[^a-zA-Z0-9\\s]+", "");
-                if(tags[i].equals("NNS") && EventDetection.lemmatizerWords.get(tokensArray[i]) != null){
-                    if (EventDetection.FW && !EventDetection.filterOutWords.contains(EventDetection.lemmatizerWords.get(tokensArray[i]))){
-                        POS_nouns.add(EventDetection.lemmatizerWords.get(tokensArray[i]));
+                if(tags[i].equals("NNS") && EventDetection.lemmatizerWords.get(tokensArray[i]) != null){ // // if the word is NNS: plural noun (NNS: plural form -> singular form)
+                    if (EventDetection.FW && !EventDetection.filterOutWords.contains(EventDetection.lemmatizerWords.get(tokensArray[i]))){ // 6. check for filter-out words
+                        POS_nouns.add(EventDetection.lemmatizerWords.get(tokensArray[i])); // add the lemmatized form of the word
                     }else{
                         EventDetection.removedFilteredOutWords++;
                     }
-                }else {
-                    if (EventDetection.FW && !EventDetection.filterOutWords.contains(tokensArray[i])){
+                }else { // if the word is NN: singular noun
+                    if (EventDetection.FW && !EventDetection.filterOutWords.contains(tokensArray[i])){ // 6. check for filter-out words
                         POS_nouns.add(tokensArray[i]);
                     }else{
                         EventDetection.removedFilteredOutWords++;
                     }
                 }
-            }else{
+            }else{ // if the word in not either NN of NNS
                 EventDetection.removedNon_Nouns++;
             }
         }

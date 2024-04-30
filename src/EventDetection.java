@@ -126,31 +126,31 @@ public class EventDetection {
                         String tweet = (String) jo.get("text"); // getting tweets
                         ArrayList<String> tokens = null;
                         if (POS) { // applying part of speech method
-                            tweet = tweet.replaceAll("http\\p{L}+", "") // removing links (string that starts with "http" followed by one or more letters from any language)
-                                    .replaceAll("[^a-zA-Z'@# \\s]+", "") //removing any sequence of characters that is not a letter: (both lowercase and uppercase), a single quote, "@" or "#", or whitespace.
-                                    .toLowerCase() // lowercasing words
-                                    .replaceAll("\\b[tT][cC][oO]\\w*\\b", ""); // removing any word that starts with "tco", "Tco", "tCo", or "TCo" (case-insensitive), followed by zero or more word characters.
+                            tweet = tweet.replaceAll("http\\p{L}+", "") // 1. removing links (string that starts with "http" followed by one or more letters from any language)
+                                    .replaceAll("[^a-zA-Z'@# \\s]+", "") //2. removing any sequence of characters that is not a letter: (both lowercase and uppercase), a single quote, "@" or "#", or whitespace.
+                                    .toLowerCase() // 3. lowercasing words
+                                    .replaceAll("\\b[tT][cC][oO]\\w*\\b", ""); // 4. removing any word that starts with "tco", "Tco", "tCo", or "TCo" (case-insensitive), followed by zero or more word characters.
                             //tokens = PosTaggerPerformance.main(tweet).toArray(String[]::new);
-                            List<String> tokenList = PosTaggerPerformance.main(tweet); // applying POS (tokenizing)
+                            List<String> tokenList = PosTaggerPerformance.main(tweet); // 5. applying POS (tokenizing)
                             tokens = new ArrayList<>(tokenList); // tokenizing + [removing mentions, removing hashtags, removing stopwords, removing words with unwanted length, and removing from filter-out words]
                         } else {
-                            tweet = tweet.replaceAll("http\\p{L}+", "")
-                                    .replaceAll("[^a-zA-Z@# \\s]+", "")
-                                    .toLowerCase()
-                                    .replaceAll("\\b[tT][cC][oO]\\w*\\b", "");
+                            tweet = tweet.replaceAll("http\\p{L}+", "") // 1.
+                                    .replaceAll("[^a-zA-Z@# \\s]+", "") // 2.
+                                    .toLowerCase() // 3.
+                                    .replaceAll("\\b[tT][cC][oO]\\w*\\b", ""); // 4.
                             String[] tokenArray = tweet.split("\\s+"); // Split the tweet by whitespace to get tokens (tokenizing)
                             tokens.addAll(Arrays.asList(tokenArray)); // Add tokens to the tokens list
 
                             Iterator<String> iterator = tokens.iterator();
                             while (iterator.hasNext()) {
                                 String x = iterator.next();
-                                if (x.startsWith("@") && x.length() > 1) { // removing mentions
+                                if (x.startsWith("@") && x.length() > 1) { // 5. removing mentions
                                     if (!mentions.contains(x)&& KR) {
                                         mentions.add(x);
                                     }
                                     iterator.remove();
                                     removedMentions++;
-                                } else if (x.startsWith("#") && x.length() > 1) { // removing hashtags
+                                } else if (x.startsWith("#") && x.length() > 1) { // 6. removing hashtags
                                     if (!hashtags.containsKey(x) && KR) {
                                         hashtags.put(x, 1);
                                     } else if (hashtags.containsKey(x) && KR) {
@@ -158,13 +158,13 @@ public class EventDetection {
                                     }
                                     iterator.remove();
                                     removedHashtags++;
-                                } else if (stopwords.contains(x) && ST) { // removing stopwords
+                                } else if (stopwords.contains(x) && ST) { // 7. removing stopwords
                                     iterator.remove();
                                     removedStopwords++;
-                                } else if ((x.length() < 4 || x.length() > 21)) { // removing words with unwanted length
+                                } else if ((x.length() < 4 || x.length() > 21)) { // 8. removing words with unwanted length
                                     iterator.remove();
                                     removedUnwantedLength++;
-                                } else if (filterOutWords.contains(x) && FW) { // removing from filter-out words
+                                } else if (filterOutWords.contains(x) && FW) { // 9. removing from filter-out words
                                     iterator.remove();
                                     removedFilteredOutWords++;
                                 }
@@ -283,7 +283,7 @@ public class EventDetection {
             outputRunning.print("\nmax weight before removing outliers: "+maxWeight);
             outputRunning.print("\n# of nodes before removing outliers: "+getNumOfNodes(graph));
             outputRunning.print("\n# of edges before removing outliers: "+graph.size());
-            graph.values().removeIf(v -> v<(array[0] - 3*array[1])); // removing edges with unwanted weights (removing outliers)
+            graph.values().removeIf(v -> v<(array[0] - 3*array[1])); // 1. removing edges with unwanted weights (removing outliers)
             graph.values().removeIf(v -> v>(array[0] + 3*array[1]));
             System.out.println("-------------------------------------");
             outputRunning.print("\n-------------------------------------");
@@ -294,7 +294,7 @@ public class EventDetection {
             outputRunning.print("\nmax weight after removing outliers: "+maxWeight);
             outputRunning.print("\n# of nodes after removing outliers: "+getNumOfNodes(graph));
             outputRunning.print("\n# of edges after removing outliers: "+graph.size());
-            graph.values().removeIf(v -> v<(0.02*maxWeight)); // removing edges with unwanted weights (frequency filter)
+            graph.values().removeIf(v -> v<(0.02*maxWeight)); // 2. removing edges with unwanted weights (frequency filter)
             graph.values().removeIf(v -> v>(0.9*maxWeight));
             System.out.println("-------------------------------------");
             outputRunning.print("\n-------------------------------------");
